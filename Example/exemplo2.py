@@ -1,4 +1,5 @@
 import cv2
+import os
 import numpy as np
 
 def preprocess_image(file):
@@ -37,17 +38,21 @@ def extract_minutiae(binary_image):
         minutiae.append((x, y))
   return minutiae
 
-image_path1 = "101_1.tif"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+fingerprints_path = os.path.join(script_dir, "fingerprints")
+image_path1 = os.path.join(fingerprints_path, "101_1.tif")
+
 #image_path2 = "101_2.tif"
 binary_image1 = preprocess_image(image_path1)
 #binary_image2 = preprocess_image(image_path2)
 minutiae1 = extract_minutiae(binary_image1)
 #minutiae2 = extract_minutiae(binary_image2)
 
-import os
-for file in os.listdir("."):
+
+for file in os.listdir(fingerprints_path):
   try:
-    binary = preprocess_image(file)
+    file_path = os.path.join(fingerprints_path, file)
+    binary = preprocess_image(file_path)
     minutiae = extract_minutiae(binary)
     match_score = match_fingerprints(minutiae1, minutiae)
     threshold = 5

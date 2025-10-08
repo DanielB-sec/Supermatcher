@@ -1,4 +1,5 @@
 import cv2
+import os
 
 def preprocess_image(file):
   image = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
@@ -27,18 +28,24 @@ def match_fingerprints(minutiae1, minutiae2):
   match_score = abs(len(minutiae1) - len(minutiae2))
   return match_score
 
-image_path1 = "101_1.tif"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+fingerprints_path = os.path.join(script_dir, "fingerprints")
+image_path1 = os.path.join(fingerprints_path, "101_1.tif")
+
+print (image_path1)
+
+#image_path1 = "./fingerprints/101_1.tif"
 #image_path2 = "101_2.tif"
 binary_image1 = preprocess_image(image_path1)
 #binary_image2 = preprocess_image(image_path2)
 minutiae1 = extract_minutiae(binary_image1)
 #minutiae2 = extract_minutiae(binary_image2)
 
-import os
-for file in os.listdir("."):
+for file in os.listdir(fingerprints_path):
   #print("testing file", file)
   try:
-    binary = preprocess_image(file)
+    file_path = os.path.join(fingerprints_path, file)
+    binary = preprocess_image(file_path)
     minutiae = extract_minutiae(binary)
     match_score = match_fingerprints(minutiae1, minutiae)
     threshold = 100
