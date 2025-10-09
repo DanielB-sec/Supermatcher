@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import argparse
 import math
-import statistics
+import pickle
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List, Sequence, Tuple
@@ -68,6 +68,10 @@ class FingerprintTemplate:
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_DB_PATH = SCRIPT_DIR / "fingerprints"
+DEFAULT_TEMPLATE_PATH = SCRIPT_DIR / "templates"
+
+IMAGE_EXTENSIONS = {".bmp", ".png", ".jpg", ".jpeg", ".tif", ".tiff"}
+TEMPLATE_EXTENSION = ".fpt"
 
 
 # Phase 1 parameters
@@ -671,6 +675,63 @@ def round_tuple(values: Tuple[float, ...], precision: int) -> Tuple[float, ...]:
 
 
 # ---------------------------------------------------------------------------
+# Template persistence helpers
+
+
+def template_output_path(output_dir: Path, image_path: Path) -> Path:
+	return output_dir / f"{image_path.stem}{TEMPLATE_EXTENSION}"
+
+
+def save_template(template: FingerprintTemplate, output_dir: Path, *, overwrite: bool = False) -> Path:
+	output_dir.mkdir(parents=True, exist_ok=True)
+	target = template_output_path(output_dir, template.image_path)
+	if target.exists() and not overwrite:
+		return target
+	with target.open("wb") as handle:
+		pickle.dump(template, handle, protocol=pickle.HIGHEST_PROTOCOL)
+	return target
+
+
+def load_templates_from_directory(directory: Path) -> List[FingerprintTemplate]:
+	if not directory.exists() or not directory.is_dir():
+		raise FileNotFoundError(f"Template directory not found: {directory}")
+	templates: List[FingerprintTemplate] = []
+	for file_path in sorted(directory.glob(f"*{TEMPLATE_EXTENSION}")):
+		try:
+			with file_path.open("rb") as handle:
+				loaded = pickle.load(handle)
+		except Exception as exc:  # noqa: BLE001
+			print(f"[warning] Failed to load template {file_path.name}: {exc}")
+			continue
+		if isinstance(loaded, FingerprintTemplate):
+			templates.append(loaded)
+		else:
+			print(f"[warning] Ignoring {file_path.name}: incompatible template format")
+	return templates
+
+
+def build_template_cache(pipeline: FingerprintPipeline,
+					 raw_dir: Path,
+					 output_dir: Path,
+					 *,
+					 overwrite: bool = False) -> Tuple[int, int, int]:
+	image_paths = enumerate_database(raw_dir)
+	total = len(image_paths)
+	processed = 0
+	skipped = 0
+	for path in image_paths:
+		target = template_output_path(output_dir, path)
+		if target.exists() and not overwrite:
+			skipped += 1
+			continue
+		identifier = infer_identity_from_name(path)
+		template = pipeline.process(path, identifier)
+		save_template(template, output_dir, overwrite=True)
+		processed += 1
+	return processed, skipped, total
+
+
+# ---------------------------------------------------------------------------
 # Pipeline orchestrator
 
 
@@ -732,7 +793,7 @@ class FingerprintMatcher:
 				score = 0.6 * score_lvl2 + 0.25 * score_lvl3 + 0.15 * score_tri
 			else:
 				score = score_lvl2
-			scores.append((candidate.identifier, score))
+			scores.append((candidate.image_path.name, score))
 
 		scores.sort(key=lambda item: item[1], reverse=True)
 		return scores[:top_k]
@@ -761,7 +822,7 @@ class FingerprintMatcher:
 def enumerate_database(db_path: Path) -> List[Path]:
 	if not db_path.exists() or not db_path.is_dir():
 		raise FileNotFoundError(f"Fingerprint database not found: {db_path}")
-	files = [p for p in db_path.iterdir() if p.suffix.lower() in {".bmp", ".png", ".jpg", ".jpeg", ".tif", ".tiff"}]
+	files = [p for p in db_path.iterdir() if p.suffix.lower() in IMAGE_EXTENSIONS]
 	if not files:
 		raise FileNotFoundError(f"No fingerprint images found inside {db_path}")
 	files.sort()
@@ -790,25 +851,55 @@ def build_gallery(pipeline: FingerprintPipeline, image_paths: Sequence[Path]) ->
 
 def parse_args() -> argparse.Namespace:
 	parser = argparse.ArgumentParser(description="Hybrid fingerprint matcher for identification/authentication.")
-	parser.add_argument("--probe", type=Path, required=True, help="Fingerprint image to analyse.")
+	parser.add_argument("--probe", type=Path, default=None, help="Fingerprint image to analyse.")
 	parser.add_argument("--mode", choices=["identify", "verify"], default="identify", help="Operation mode.")
 	parser.add_argument("--claim", type=str, default=None, help="Claimed identity for verification mode.")
 	parser.add_argument("--top", type=int, default=5, help="Number of top matches to return in identification mode.")
-	parser.add_argument("--db", type=Path, default=DEFAULT_DB_PATH, help="Path to fingerprint gallery (default: ./fingerprints).")
+	parser.add_argument("--templates", type=Path, default=DEFAULT_TEMPLATE_PATH, help="Directory containing cached fingerprint templates.")
+	parser.add_argument("--build-from", type=Path, default=None, help="Process raw fingerprints from this directory into template files.")
+	parser.add_argument("--overwrite-templates", action="store_true", help="Rebuild templates even if cache files already exist.")
 	parser.add_argument("--use-level3", action="store_true", help="Enable Level-3 feature fusion (requires high-resolution images).")
 	return parser.parse_args()
 
 
 def main() -> None:
 	args = parse_args()
+	pipeline = FingerprintPipeline(include_level3=args.use_level3)
+	templates_dir = args.templates
+
+	if args.build_from is not None:
+		try:
+			processed, skipped, total = build_template_cache(
+				pipeline,
+				raw_dir=args.build_from,
+				output_dir=templates_dir,
+				overwrite=args.overwrite_templates,
+			)
+		except FileNotFoundError as exc:
+			raise SystemExit(str(exc)) from exc
+		print(
+			f"[info] Template cache updated: processed {processed} of {total} images "
+			f"(skipped {skipped}) into {templates_dir}"
+		)
+		if args.probe is None:
+			print("[info] Cache build finished. Provide --probe to run identification/verification.")
+			return
+
+	if args.probe is None:
+		raise SystemExit("No probe fingerprint provided. Use --probe <image> to run matching.")
+
 	if args.mode == "verify" and not args.claim:
 		raise SystemExit("--claim is required in verify mode.")
 
-	db_path = args.db
-	gallery_paths = enumerate_database(db_path)
+	try:
+		gallery_templates = load_templates_from_directory(templates_dir)
+	except FileNotFoundError as exc:
+		raise SystemExit(str(exc)) from exc
 
-	pipeline = FingerprintPipeline(include_level3=args.use_level3)
-	gallery_templates = build_gallery(pipeline, gallery_paths)
+	if not gallery_templates:
+		raise SystemExit(
+			f"No templates found in {templates_dir}. Build them first with --build-from <folder>."
+		)
 
 	probe_identifier = infer_identity_from_name(args.probe)
 	probe_template = pipeline.process(args.probe, probe_identifier)
@@ -817,6 +908,9 @@ def main() -> None:
 
 	if args.mode == "identify":
 		results = matcher.identify(probe_template, top_k=args.top)
+		if not results:
+			print("No matches produced a valid score.")
+			return
 		print("Top matches:")
 		for rank, (identity, score) in enumerate(results, start=1):
 			print(f"{rank:2d}. {identity:15s} | score={score:.4f}")
