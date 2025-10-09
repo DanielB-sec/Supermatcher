@@ -18,11 +18,12 @@ authentication (one-to-one) against a fingerprint gallery stored inside the
 from __future__ import annotations
 
 import argparse
+import hashlib
 import math
 import pickle
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Sequence, Tuple
+from typing import Iterable, List, Optional, Sequence, Tuple
 
 import cv2
 import numpy as np
@@ -53,13 +54,18 @@ class Pore:
 class FingerprintTemplate:
 	identifier: str
 	image_path: Path
-	minutiae: List[Minutia]
-	mask: np.ndarray
-	orientation: np.ndarray  # radians, per block
-	frequency: np.ndarray    # cycles / pixel, per block
-	skeleton: np.ndarray     # thinned binary image
-	level3: List[Pore]
-	triangle_signatures: List[Tuple[float, float, float]]
+	protected: np.ndarray  # packed cancelable template bits
+	bit_length: int
+
+	def __post_init__(self) -> None:
+		self.protected = np.asarray(self.protected, dtype=np.uint8)
+		if self.protected.ndim != 1:
+			raise ValueError("Protected template must be a 1-D array of packed bits.")
+		expected_len = (self.bit_length + 7) // 8
+		if self.protected.size != expected_len:
+			raise ValueError(
+				f"Protected template has {self.protected.size} bytes but expected {expected_len}."
+			)
 
 
 # ---------------------------------------------------------------------------
@@ -109,13 +115,48 @@ MINUTIA_ANGLE_THRESHOLD_DEG = 25.0
 # Matching parameters
 MATCH_DISTANCE_THRESHOLD = 18.0
 MATCH_ANGLE_THRESHOLD_RAD = math.radians(25.0)
-MATCH_MIN_SCORE = 0.12
+MATCH_MIN_SCORE = 0.82
 
 # Level 3 (optional)
 PORE_MIN_SIGMA = 0.6
 PORE_MAX_SIGMA = 1.4
 PORE_SIGMA_STEPS = 5
 PORE_RESPONSE_THRESHOLD = 0.025
+
+# Cancelable biometrics parameters
+FEATURE_VECTOR_DIM = 736
+MAX_MINUTIAE_ENCODER = 120
+MINUTIA_FEATURE_SIZE = 5
+ORI_HIST_BINS = 32
+FREQ_HIST_BINS = 24
+DEFAULT_PROJECTION_DIM = 512
+DEFAULT_HASH_COUNT = 2
+
+GABOR_KERNEL_CONFIG = (
+	{"ksize": 21, "sigma": 3.0, "theta": 0.0, "lambd": 7.0, "gamma": 0.6},
+	{"ksize": 21, "sigma": 3.0, "theta": math.pi / 4.0, "lambd": 7.0, "gamma": 0.6},
+	{"ksize": 21, "sigma": 3.0, "theta": math.pi / 2.0, "lambd": 7.0, "gamma": 0.6},
+	{"ksize": 21, "sigma": 3.0, "theta": 3.0 * math.pi / 4.0, "lambd": 7.0, "gamma": 0.6},
+	{"ksize": 31, "sigma": 4.5, "theta": 0.0, "lambd": 11.0, "gamma": 0.5},
+	{"ksize": 31, "sigma": 4.5, "theta": math.pi / 4.0, "lambd": 11.0, "gamma": 0.5},
+	{"ksize": 31, "sigma": 4.5, "theta": math.pi / 2.0, "lambd": 11.0, "gamma": 0.5},
+	{"ksize": 31, "sigma": 4.5, "theta": 3.0 * math.pi / 4.0, "lambd": 11.0, "gamma": 0.5},
+)
+
+GABOR_KERNELS = tuple(
+	cv2.getGaborKernel(
+		(cfg["ksize"], cfg["ksize"]),
+		cfg["sigma"],
+		cfg["theta"],
+		cfg["lambd"],
+		cfg["gamma"],
+		psi=0.0,
+		ktype=cv2.CV_32F,
+	)
+	for cfg in GABOR_KERNEL_CONFIG
+)
+
+TEXTURE_FEATURES_PER_KERNEL = 2
 
 
 # ---------------------------------------------------------------------------
@@ -587,93 +628,226 @@ def compute_delaunay_signatures(minutiae: Sequence[Minutia], image_shape: Tuple[
 
 
 # ---------------------------------------------------------------------------
-# Matching utilities
+# Cancelable template helpers
 
 
-def match_minutiae(probe: FingerprintTemplate,
-				   candidate: FingerprintTemplate,
-				   distance_threshold: float = MATCH_DISTANCE_THRESHOLD,
-				   angle_threshold: float = MATCH_ANGLE_THRESHOLD_RAD) -> float:
-	"""Return similarity score between two templates based on minutiae alignment."""
-	matches = 0
-	used = set()
-
-	for m in probe.minutiae:
-		best_index = -1
-		best_distance = float("inf")
-		for idx, n in enumerate(candidate.minutiae):
-			if idx in used:
-				continue
-			if m.kind != n.kind:
-				continue
-			dx = m.x - n.x
-			dy = m.y - n.y
-			distance = math.hypot(dx, dy)
-			if distance > distance_threshold:
-				continue
-			angle_diff = abs(normalise_angle(m.angle - n.angle))
-			if angle_diff > angle_threshold:
-				continue
-			if distance < best_distance:
-				best_distance = distance
-				best_index = idx
-		if best_index >= 0:
-			used.add(best_index)
-			matches += 1
-
-	denom = max(len(probe.minutiae), len(candidate.minutiae), 1)
-	return matches / denom
+def _derive_seed_from_key(key: str, feature_dim: int, projection_dim: int) -> np.random.Generator:
+	key_material = f"{key}|{feature_dim}|{projection_dim}".encode("utf-8")
+	digest = hashlib.sha256(key_material).digest()
+	seed = int.from_bytes(digest[:8], "big", signed=False)
+	return np.random.default_rng(seed)
 
 
-def normalise_angle(angle: float) -> float:
-	return (angle + math.pi) % (2.0 * math.pi) - math.pi
+class CancelableHasher:
+	def __init__(
+		self,
+		feature_dim: int,
+		projection_dim: int,
+		key: str,
+		hash_count: int = 1,
+	) -> None:
+		if projection_dim <= 0:
+			raise ValueError("projection_dim must be positive.")
+		if hash_count <= 0:
+			raise ValueError("hash_count must be positive.")
+		self.feature_dim = feature_dim
+		self.projection_dim = projection_dim
+		self.hash_count = hash_count
+		self._projections: List[np.ndarray] = []
+		self._biases: List[np.ndarray] = []
+		for index in range(hash_count):
+			seed_key = f"{key}:{index}"
+			rng = _derive_seed_from_key(seed_key, feature_dim, projection_dim)
+			projection = rng.normal(
+				loc=0.0,
+				scale=1.0 / math.sqrt(projection_dim),
+				size=(projection_dim, feature_dim),
+			).astype(np.float32)
+			bias = rng.normal(loc=0.0, scale=0.05, size=(projection_dim,)).astype(np.float32)
+			self._projections.append(projection)
+			self._biases.append(bias)
+		self._pack_length = (self.bit_length + 7) // 8
+
+	@property
+	def bit_length(self) -> int:
+		return self.projection_dim * self.hash_count
+
+	def encode(self, features: np.ndarray) -> np.ndarray:
+		vector = np.asarray(features, dtype=np.float32)
+		if vector.ndim != 1:
+			raise ValueError("Feature vector must be one dimensional.")
+		if vector.shape[0] != self.feature_dim:
+			raise ValueError(
+				f"Expected feature vector of length {self.feature_dim}, received {vector.shape[0]}"
+			)
+		bits_accum = []
+		for projection, bias in zip(self._projections, self._biases):
+			projected = (projection @ vector) + bias
+			bits_accum.append((projected >= 0.0).astype(np.uint8))
+		concatenated = np.concatenate(bits_accum, axis=0)
+		return np.packbits(concatenated)
+
+	def similarity(self, packed_a: np.ndarray, packed_b: np.ndarray) -> float:
+		a = np.asarray(packed_a, dtype=np.uint8)
+		b = np.asarray(packed_b, dtype=np.uint8)
+		if a.shape != b.shape:
+			raise ValueError("Packed templates must have identical shape to compare.")
+		if a.size != self._pack_length:
+			raise ValueError("Packed template size does not match projection parameters.")
+		xor = np.bitwise_xor(a, b)
+		mismatches = np.unpackbits(xor)[: self.bit_length]
+		if mismatches.size != self.bit_length:
+			raise ValueError("Packed template size is inconsistent with projection parameters.")
+		reshaped = mismatches.reshape(self.hash_count, self.projection_dim)
+		per_hash_similarity = 1.0 - (reshaped.sum(axis=1) / float(self.projection_dim))
+		return float(per_hash_similarity.mean())
 
 
-def match_level3_features(probe: FingerprintTemplate,
-						  candidate: FingerprintTemplate) -> float:
-	if not probe.level3 or not candidate.level3:
-		return 0.0
-	used = set()
-	matches = 0
-	for pore in probe.level3:
-		best_idx = -1
-		best_distance = float("inf")
-		for idx, cand in enumerate(candidate.level3):
-			if idx in used:
-				continue
-			dx = pore.x - cand.x
-			dy = pore.y - cand.y
-			distance = math.hypot(dx, dy)
-			if distance > 12.0:
-				continue
-			radius_diff = abs(pore.radius - cand.radius)
-			if radius_diff > 0.6:
-				continue
-			if distance < best_distance:
-				best_distance = distance
-				best_idx = idx
-		if best_idx >= 0:
-			used.add(best_idx)
-			matches += 1
-	denom = max(len(probe.level3), len(candidate.level3), 1)
-	return matches / denom
+def build_feature_vector(
+	minutiae: Sequence[Minutia],
+	mask: np.ndarray,
+	orientation: np.ndarray,
+	frequency: np.ndarray,
+	skeleton: np.ndarray,
+	enhanced: np.ndarray,
+	diffused: np.ndarray,
+	*,
+	level3: Optional[Sequence[Pore]] = None,
+) -> np.ndarray:
+	if mask.ndim != 2:
+		raise ValueError("Mask must be a 2-D array.")
+	height, width = mask.shape
+	width = max(width, 1)
+	height = max(height, 1)
+	mask_bool = mask.astype(bool)
+	features: List[float] = []
 
+	sorted_minutiae = sorted(minutiae, key=lambda m: m.quality, reverse=True)
+	for idx in range(MAX_MINUTIAE_ENCODER):
+		if idx < len(sorted_minutiae):
+			minutia = sorted_minutiae[idx]
+			norm_quality = float(np.clip(minutia.quality, 0.0, 255.0)) / 255.0
+			features.extend(
+				[
+					float(minutia.x) / float(width),
+					float(minutia.y) / float(height),
+					math.cos(minutia.angle),
+					math.sin(minutia.angle),
+					norm_quality,
+				]
+			)
+		else:
+			features.extend([0.0] * MINUTIA_FEATURE_SIZE)
 
-def compare_triangle_signatures(probe: FingerprintTemplate,
-								candidate: FingerprintTemplate) -> float:
-	if not probe.triangle_signatures or not candidate.triangle_signatures:
-		return 0.0
-	set_probe = set(round_tuple(sig, 3) for sig in probe.triangle_signatures)
-	set_candidate = set(round_tuple(sig, 3) for sig in candidate.triangle_signatures)
-	intersection = set_probe & set_candidate
-	denom = max(len(set_probe), len(set_candidate), 1)
-	return len(intersection) / denom
+	minutiae_count = len(sorted_minutiae)
+	features.append(minutiae_count / float(MAX_MINUTIAE_ENCODER or 1))
+	features.append(float(mask.mean()))
+	features.append(float(skeleton.mean()))
 
+	if sorted_minutiae:
+		qualities = np.array([m.quality for m in sorted_minutiae[:MAX_MINUTIAE_ENCODER]], dtype=np.float32) / 255.0
+		xs = np.array([m.x for m in sorted_minutiae[:MAX_MINUTIAE_ENCODER]], dtype=np.float32) / float(width)
+		ys = np.array([m.y for m in sorted_minutiae[:MAX_MINUTIAE_ENCODER]], dtype=np.float32) / float(height)
+		features.append(float(qualities.mean()))
+		features.append(float(qualities.std()))
+		features.append(float(xs.mean()))
+		features.append(float(xs.std()))
+		features.append(float(ys.mean()))
+		features.append(float(ys.std()))
+		features.append(float(xs.max() - xs.min()))
+		features.append(float(ys.max() - ys.min()))
+	else:
+		features.extend([0.0] * 8)
 
-def round_tuple(values: Tuple[float, ...], precision: int) -> Tuple[float, ...]:
-	return tuple(round(v, precision) for v in values)
+	orientation_values = orientation.astype(np.float32).flatten()
+	orientation_values = orientation_values[np.isfinite(orientation_values)]
+	if orientation_values.size:
+		hist_orientation, _ = np.histogram(
+			orientation_values,
+			bins=ORI_HIST_BINS,
+			range=(-math.pi, math.pi),
+			density=True,
+		)
+		mean_cos = float(np.mean(np.cos(orientation_values)))
+		mean_sin = float(np.mean(np.sin(orientation_values)))
+		orientation_coherence = math.sqrt(mean_cos ** 2 + mean_sin ** 2)
+		orientation_std = float(np.std(orientation_values))
+		orientation_coverage = float(np.count_nonzero(np.abs(orientation_values)) / orientation_values.size)
+	else:
+		hist_orientation = np.zeros(ORI_HIST_BINS, dtype=np.float32)
+		mean_cos = 0.0
+		mean_sin = 0.0
+		orientation_coherence = 0.0
+		orientation_std = 0.0
+		orientation_coverage = 0.0
+	features.extend(hist_orientation.astype(np.float32))
+	features.extend([mean_cos, mean_sin, orientation_coherence, orientation_std, orientation_coverage])
 
+	frequency_values = frequency.astype(np.float32).flatten()
+	valid_freq = frequency_values[(frequency_values > 0.0) & np.isfinite(frequency_values)]
+	if valid_freq.size:
+		upper = float(max(valid_freq.max(), 0.1))
+		hist_frequency, _ = np.histogram(
+			valid_freq,
+			bins=FREQ_HIST_BINS,
+			range=(0.0, upper),
+			density=True,
+		)
+		freq_mean = float(valid_freq.mean())
+		freq_std = float(valid_freq.std())
+		freq_coverage = float(np.count_nonzero(valid_freq) / valid_freq.size)
+	else:
+		hist_frequency = np.zeros(FREQ_HIST_BINS, dtype=np.float32)
+		freq_mean = 0.0
+		freq_std = 0.0
+		freq_coverage = 0.0
+	features.extend(hist_frequency.astype(np.float32))
+	features.extend([freq_mean, freq_std, freq_coverage])
 
+	if level3:
+		radii = np.array([pore.radius for pore in level3], dtype=np.float32)
+		strengths = np.array([pore.strength for pore in level3], dtype=np.float32)
+		features.extend([
+			float(radii.mean()) if radii.size else 0.0,
+			float(radii.std()) if radii.size else 0.0,
+			float(strengths.mean()) if strengths.size else 0.0,
+			float(len(level3)),
+		])
+	else:
+		features.extend([0.0, 0.0, 0.0, 0.0])
+
+	foreground = enhanced[mask_bool]
+	diffused_foreground = diffused[mask_bool]
+	if foreground.size:
+		features.append(float(foreground.mean()) / 255.0)
+		features.append(float(foreground.std()) / 255.0)
+	else:
+		features.extend([0.0, 0.0])
+	if diffused_foreground.size:
+		features.append(float(diffused_foreground.mean()) / 255.0)
+		features.append(float(diffused_foreground.std()) / 255.0)
+	else:
+		features.extend([0.0, 0.0])
+
+	for kernel in GABOR_KERNELS:
+		response = cv2.filter2D(enhanced, cv2.CV_32F, kernel)
+		masked = np.abs(response)[mask_bool]
+		if masked.size:
+			features.append(float(masked.mean()))
+			features.append(float(masked.std()))
+		else:
+			features.extend([0.0, 0.0])
+
+	vector = np.asarray(features, dtype=np.float32)
+	if vector.size < FEATURE_VECTOR_DIM:
+		vector = np.pad(vector, (0, FEATURE_VECTOR_DIM - vector.size), mode="constant")
+	else:
+		vector = vector[:FEATURE_VECTOR_DIM]
+
+	norm = float(np.linalg.norm(vector))
+	if norm > 0.0:
+		vector /= norm
+	return vector.astype(np.float32, copy=False)
 # ---------------------------------------------------------------------------
 # Template persistence helpers
 
@@ -736,8 +910,11 @@ def build_template_cache(pipeline: FingerprintPipeline,
 
 
 class FingerprintPipeline:
-	def __init__(self, include_level3: bool = False) -> None:
+	def __init__(self, include_level3: bool = False, hasher: Optional[CancelableHasher] = None) -> None:
 		self.include_level3 = include_level3
+		if hasher is None:
+			raise ValueError("CancelableHasher instance must be provided for protected templates.")
+		self.hasher = hasher
 
 	def process(self, image_path: Path, identifier: str) -> FingerprintTemplate:
 		image = load_grayscale_image(image_path)
@@ -757,18 +934,23 @@ class FingerprintPipeline:
 		if self.include_level3:
 			level3_features = detect_pores(enhanced, mask)
 
-		signatures = compute_delaunay_signatures(minutiae, skeleton.shape)
+		feature_vector = build_feature_vector(
+			minutiae,
+			mask,
+			orientation,
+			frequency,
+			skeleton,
+			enhanced,
+			diffused,
+			level3=level3_features if self.include_level3 else None,
+		)
+		protected = self.hasher.encode(feature_vector)
 
 		return FingerprintTemplate(
 			identifier=identifier,
 			image_path=image_path,
-			minutiae=minutiae,
-			mask=mask.astype(np.uint8),
-			orientation=orientation,
-			frequency=frequency,
-			skeleton=skeleton,
-			level3=level3_features,
-			triangle_signatures=signatures,
+			protected=protected,
+			bit_length=self.hasher.bit_length,
 		)
 
 
@@ -777,23 +959,23 @@ class FingerprintPipeline:
 
 
 class FingerprintMatcher:
-	def __init__(self, templates: Sequence[FingerprintTemplate], include_level3: bool) -> None:
+	def __init__(self, templates: Sequence[FingerprintTemplate], hasher: CancelableHasher) -> None:
 		self.templates = list(templates)
-		self.include_level3 = include_level3
+		self.hasher = hasher
+		expected_bits = self.hasher.bit_length
+		for template in self.templates:
+			if template.bit_length != expected_bits:
+				raise ValueError(
+					"Template bit-length mismatch. Rebuild the cache with the current projection key."
+				)
 
 	def identify(self, probe: FingerprintTemplate, top_k: int = 5) -> List[Tuple[str, float]]:
 		scores: List[Tuple[str, float]] = []
 		for candidate in self.templates:
 			if candidate.image_path == probe.image_path:
 				continue
-			score_lvl2 = match_minutiae(probe, candidate)
-			if self.include_level3:
-				score_lvl3 = match_level3_features(probe, candidate)
-				score_tri = compare_triangle_signatures(probe, candidate)
-				score = 0.6 * score_lvl2 + 0.25 * score_lvl3 + 0.15 * score_tri
-			else:
-				score = score_lvl2
-			scores.append((candidate.image_path.name, score))
+			similarity = self.hasher.similarity(probe.protected, candidate.protected)
+			scores.append((candidate.image_path.name, similarity))
 
 		scores.sort(key=lambda item: item[1], reverse=True)
 		return scores[:top_k]
@@ -804,14 +986,8 @@ class FingerprintMatcher:
 			raise ValueError(f"No templates available for claimed identity '{claimed_id}'.")
 		best_score = 0.0
 		for candidate in candidates:
-			score_lvl2 = match_minutiae(probe, candidate)
-			if self.include_level3:
-				score_lvl3 = match_level3_features(probe, candidate)
-				score_tri = compare_triangle_signatures(probe, candidate)
-				score = 0.6 * score_lvl2 + 0.25 * score_lvl3 + 0.15 * score_tri
-			else:
-				score = score_lvl2
-			best_score = max(best_score, score)
+			similarity = self.hasher.similarity(probe.protected, candidate.protected)
+			best_score = max(best_score, similarity)
 		return best_score >= MATCH_MIN_SCORE, best_score
 
 
@@ -859,12 +1035,40 @@ def parse_args() -> argparse.Namespace:
 	parser.add_argument("--build-from", type=Path, default=None, help="Process raw fingerprints from this directory into template files.")
 	parser.add_argument("--overwrite-templates", action="store_true", help="Rebuild templates even if cache files already exist.")
 	parser.add_argument("--use-level3", action="store_true", help="Enable Level-3 feature fusion (requires high-resolution images).")
+	parser.add_argument(
+		"--projection-key",
+		type=str,
+		default="default",
+		help="Cancelable projection key. Use the same value for building and matching to keep templates valid.",
+	)
+	parser.add_argument(
+		"--projection-dim",
+		type=int,
+		default=DEFAULT_PROJECTION_DIM,
+		help="Number of bits per hash projection (default: %(default)s).",
+	)
+	parser.add_argument(
+		"--hash-count",
+		type=int,
+		default=DEFAULT_HASH_COUNT,
+		help="Number of independent projection hashes to fuse (default: %(default)s).",
+	)
 	return parser.parse_args()
 
 
 def main() -> None:
 	args = parse_args()
-	pipeline = FingerprintPipeline(include_level3=args.use_level3)
+	if args.projection_dim <= 0:
+		raise SystemExit("--projection-dim must be positive.")
+	if args.hash_count <= 0:
+		raise SystemExit("--hash-count must be positive.")
+	hasher = CancelableHasher(
+		feature_dim=FEATURE_VECTOR_DIM,
+		projection_dim=args.projection_dim,
+		key=args.projection_key,
+		hash_count=args.hash_count,
+	)
+	pipeline = FingerprintPipeline(include_level3=args.use_level3, hasher=hasher)
 	templates_dir = args.templates
 
 	if args.build_from is not None:
@@ -904,7 +1108,7 @@ def main() -> None:
 	probe_identifier = infer_identity_from_name(args.probe)
 	probe_template = pipeline.process(args.probe, probe_identifier)
 
-	matcher = FingerprintMatcher(gallery_templates, include_level3=args.use_level3)
+	matcher = FingerprintMatcher(gallery_templates, hasher=hasher)
 
 	if args.mode == "identify":
 		results = matcher.identify(probe_template, top_k=args.top)
