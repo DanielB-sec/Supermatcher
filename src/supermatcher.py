@@ -27,6 +27,7 @@ from typing import Iterable, List, Optional, Sequence, Tuple
 
 import cv2
 import numpy as np
+from scipy.spatial import KDTree
 
 
 # ---------------------------------------------------------------------------
@@ -56,6 +57,12 @@ class FingerprintTemplate:
 	image_path: Path
 	protected: np.ndarray  # packed cancelable template bits
 	bit_length: int
+	quality: float = 0.0
+	raw_features: Optional[np.ndarray] = None
+	minutiae: Optional[List[Minutia]] = None
+	fused: bool = False
+	source_count: int = 1
+	consensus_score: float = 1.0
 
 	def __post_init__(self) -> None:
 		self.protected = np.asarray(self.protected, dtype=np.uint8)
@@ -66,6 +73,23 @@ class FingerprintTemplate:
 			raise ValueError(
 				f"Protected template has {self.protected.size} bytes but expected {expected_len}."
 			)
+		self.quality = float(self.quality)
+		if not math.isfinite(self.quality):
+			self.quality = 0.0
+		self.quality = float(np.clip(self.quality, 0.0, 1.0))
+		if self.raw_features is not None:
+			raw = np.asarray(self.raw_features, dtype=np.float32)
+			if raw.ndim != 1:
+				raise ValueError("raw_features must be a 1-D vector if provided.")
+			self.raw_features = raw
+		if self.minutiae is not None:
+			self.minutiae = [
+				m if isinstance(m, Minutia) else Minutia(**m)  # type: ignore[arg-type]
+				for m in self.minutiae
+			]
+		self.fused = bool(self.fused)
+		self.source_count = int(max(self.source_count, 1))
+		self.consensus_score = float(np.clip(self.consensus_score, 0.0, 1.0))
 
 
 # ---------------------------------------------------------------------------
@@ -131,6 +155,36 @@ ORI_HIST_BINS = 32
 FREQ_HIST_BINS = 24
 DEFAULT_PROJECTION_DIM = 512
 DEFAULT_HASH_COUNT = 2
+DEFAULT_QUALITY_THRESHOLD = 0.45
+DEFAULT_FUSION_DISTANCE = 12.0
+DEFAULT_FUSION_ANGLE_DEG = 20.0
+DEFAULT_FUSION_MIN_CONSENSUS = 0.4
+
+# Advanced fusion parameters
+FUSION_MIN_QUALITY = 0.3
+FUSION_ALIGNMENT_THRESHOLD = 15.0  # pixels
+FUSION_MINUTIAE_CLUSTER_RADIUS = 8.0  # pixels
+FUSION_ANGLE_TOLERANCE = math.radians(20.0)
+FUSION_RANSAC_ITERATIONS = 1000
+FUSION_RANSAC_THRESHOLD = 10.0
+
+
+# ---------------------------------------------------------------------------
+# Fusion configuration
+
+
+@dataclass
+class FusionSettings:
+	enabled: bool = True
+	distance: float = DEFAULT_FUSION_DISTANCE
+	angle_deg: float = DEFAULT_FUSION_ANGLE_DEG
+	min_consensus: float = DEFAULT_FUSION_MIN_CONSENSUS
+	keep_raw: bool = False
+	mode: str = "full"  # none, minutiae, features, full
+
+	@property
+	def angle_rad(self) -> float:
+		return math.radians(self.angle_deg)
 
 GABOR_KERNEL_CONFIG = (
 	{"ksize": 21, "sigma": 3.0, "theta": 0.0, "lambd": 7.0, "gamma": 0.6},
@@ -703,6 +757,720 @@ class CancelableHasher:
 		return float(per_hash_similarity.mean())
 
 
+def _angle_difference(theta1: float, theta2: float) -> float:
+	diff = (theta1 - theta2 + math.pi) % (2.0 * math.pi) - math.pi
+	return abs(diff)
+
+
+def fuse_feature_vectors(templates: Sequence[FingerprintTemplate]) -> Optional[np.ndarray]:
+	vectors: List[np.ndarray] = []
+	weights: List[float] = []
+	for template in templates:
+		if template.raw_features is None:
+			continue
+		vectors.append(np.asarray(template.raw_features, dtype=np.float32))
+		weights.append(max(template.quality, 1e-6))
+	if not vectors:
+		return None
+	stacked = np.stack(vectors, axis=0)
+	weights_arr = np.asarray(weights, dtype=np.float32)
+	if np.allclose(weights_arr.sum(), 0.0):
+		weights_arr = np.ones_like(weights_arr) / float(len(weights_arr))
+	else:
+		weights_arr /= weights_arr.sum()
+	fused = weights_arr @ stacked
+	norm = float(np.linalg.norm(fused))
+	if norm > 0.0:
+		fused = fused / norm
+	return fused.astype(np.float32)
+
+
+# ---------------------------------------------------------------------------
+# Advanced Fusion Helpers
+
+
+def assess_image_quality(
+	image: np.ndarray,
+	mask: np.ndarray,
+	skeleton: np.ndarray,
+	minutiae: Sequence[Minutia],
+) -> float:
+	"""Assess fingerprint image quality using multiple metrics.
+	
+	Args:
+		image: Enhanced fingerprint image (float32, 0-255)
+		mask: Binary foreground mask
+		skeleton: Thinned skeleton
+		minutiae: List of extracted minutiae
+		
+	Returns:
+		Quality score in range [0, 1]
+	"""
+	if mask.size == 0 or not mask.any():
+		return 0.0
+		
+	# 1. Sharpness via Laplacian variance
+	laplacian = cv2.Laplacian(image.astype(np.uint8), cv2.CV_64F)
+	laplacian_var = float(laplacian[mask].var()) if mask.any() else 0.0
+	sharpness_score = float(np.clip(laplacian_var / 500.0, 0.0, 1.0))
+	
+	# 2. Foreground area ratio
+	area_score = float(mask.mean())
+	
+	# 3. Minutiae density and distribution
+	minutiae_count = len(minutiae)
+	minutiae_score = float(np.clip(minutiae_count / 50.0, 0.0, 1.0))
+	
+	# 4. Skeleton quality
+	skeleton_density = float(skeleton[mask].mean()) if mask.any() else 0.0
+	skeleton_score = float(np.clip(skeleton_density * 5.0, 0.0, 1.0))
+	
+	# 5. Signal-to-noise ratio
+	if mask.any():
+		foreground = image[mask]
+		snr = float(foreground.mean() / (foreground.std() + 1e-6))
+		snr_score = float(np.clip(snr / 10.0, 0.0, 1.0))
+	else:
+		snr_score = 0.0
+	
+	# Weighted combination
+	quality = (
+		0.30 * sharpness_score +
+		0.20 * area_score +
+		0.25 * minutiae_score +
+		0.15 * skeleton_score +
+		0.10 * snr_score
+	)
+	
+	return float(np.clip(quality, 0.0, 1.0))
+
+
+def estimate_rigid_transform_ransac(
+	src_points: np.ndarray,
+	dst_points: np.ndarray,
+	max_iterations: int = FUSION_RANSAC_ITERATIONS,
+	threshold: float = FUSION_RANSAC_THRESHOLD,
+) -> Tuple[Optional[np.ndarray], float]:
+	"""Estimate rigid transformation (rotation + translation) using RANSAC.
+	
+	Args:
+		src_points: Source points (N, 2)
+		dst_points: Destination points (N, 2)
+		max_iterations: Maximum RANSAC iterations
+		threshold: Inlier distance threshold
+		
+	Returns:
+		Tuple of (transformation_matrix 2x3, confidence_score)
+	"""
+	if src_points.shape[0] < 3 or dst_points.shape[0] < 3:
+		return None, 0.0
+	
+	if src_points.shape[0] != dst_points.shape[0]:
+		return None, 0.0
+	
+	best_transform = None
+	best_inliers = 0
+	n_points = src_points.shape[0]
+	
+	for _ in range(max_iterations):
+		# Randomly sample 2 point pairs
+		if n_points < 2:
+			break
+		indices = np.random.choice(n_points, size=min(2, n_points), replace=False)
+		src_sample = src_points[indices]
+		dst_sample = dst_points[indices]
+		
+		# Estimate transformation from 2 pairs
+		transform = cv2.estimateAffinePartial2D(
+			src_sample.reshape(-1, 1, 2).astype(np.float32),
+			dst_sample.reshape(-1, 1, 2).astype(np.float32),
+		)
+		
+		if transform is None or transform[0] is None:
+			continue
+		
+		T = transform[0]
+		
+		# Apply transformation and count inliers
+		src_transformed = cv2.transform(src_points.reshape(-1, 1, 2).astype(np.float32), T)
+		src_transformed = src_transformed.reshape(-1, 2)
+		
+		distances = np.linalg.norm(src_transformed - dst_points, axis=1)
+		inliers = np.sum(distances < threshold)
+		
+		if inliers > best_inliers:
+			best_inliers = inliers
+			best_transform = T
+	
+	if best_transform is None:
+		return None, 0.0
+	
+	confidence = float(best_inliers) / float(n_points)
+	return best_transform, confidence
+
+
+def align_minutiae_sets(
+	reference_minutiae: Sequence[Minutia],
+	target_minutiae: Sequence[Minutia],
+	image_shape: Tuple[int, int],
+) -> Tuple[List[Minutia], float]:
+	"""Align target minutiae to reference using RANSAC.
+	
+	Args:
+		reference_minutiae: Reference minutiae list
+		target_minutiae: Target minutiae to transform
+		image_shape: Image dimensions (height, width)
+		
+	Returns:
+		Tuple of (aligned_minutiae, alignment_confidence)
+	"""
+	if len(reference_minutiae) < 3 or len(target_minutiae) < 3:
+		return list(target_minutiae), 0.0
+	
+	# Extract positions
+	ref_points = np.array([[m.x, m.y] for m in reference_minutiae], dtype=np.float32)
+	tgt_points = np.array([[m.x, m.y] for m in target_minutiae], dtype=np.float32)
+	
+	# Find correspondences using nearest neighbors (simplified)
+	tree = KDTree(ref_points)
+	distances, indices = tree.query(tgt_points, k=1)
+	
+	# Filter correspondences by distance threshold
+	valid = distances < FUSION_ALIGNMENT_THRESHOLD
+	if valid.sum() < 3:
+		return list(target_minutiae), 0.0
+	
+	src_matched = tgt_points[valid]
+	dst_matched = ref_points[indices[valid]]
+	
+	# Estimate transformation
+	transform, confidence = estimate_rigid_transform_ransac(src_matched, dst_matched)
+	
+	if transform is None:
+		return list(target_minutiae), 0.0
+	
+	# Apply transformation to all minutiae
+	aligned_minutiae: List[Minutia] = []
+	for minutia in target_minutiae:
+		point = np.array([[minutia.x, minutia.y]], dtype=np.float32).reshape(1, 1, 2)
+		transformed = cv2.transform(point, transform).reshape(2)
+		
+		# Extract rotation from transform matrix
+		rotation = math.atan2(transform[1, 0], transform[0, 0])
+		new_angle = (minutia.angle + rotation) % (2.0 * math.pi)
+		
+		aligned_minutiae.append(Minutia(
+			x=float(transformed[0]),
+			y=float(transformed[1]),
+			angle=new_angle,
+			kind=minutia.kind,
+			quality=minutia.quality,
+		))
+	
+	return aligned_minutiae, confidence
+
+
+def fuse_minutiae_advanced(
+	aligned_minutiae_sets: Sequence[Sequence[Minutia]],
+	quality_weights: Sequence[float],
+) -> List[Minutia]:
+	"""Fuse multiple aligned minutiae sets using spatial clustering.
+	
+	Args:
+		aligned_minutiae_sets: List of aligned minutiae lists
+		quality_weights: Quality weight for each set
+		
+	Returns:
+		Fused minutiae list with consensus filtering
+	"""
+	if not aligned_minutiae_sets:
+		return []
+	
+	n_samples = len(aligned_minutiae_sets)
+	clusters: List[dict] = []
+	
+	# Normalize weights
+	weights = np.array(quality_weights, dtype=np.float32)
+	if not np.allclose(weights.sum(), 0.0):
+		weights /= weights.sum()
+	else:
+		weights = np.ones_like(weights) / float(len(weights))
+	
+	# Aggregate minutiae from all sets
+	for sample_idx, minutiae_set in enumerate(aligned_minutiae_sets):
+		weight = float(weights[sample_idx])
+		
+		for minutia in minutiae_set:
+			x, y, angle = float(minutia.x), float(minutia.y), float(minutia.angle)
+			local_quality = max(float(minutia.quality), 1e-6)
+			combined_weight = weight * local_quality
+			
+			# Find matching cluster
+			assigned = False
+			for cluster in clusters:
+				dist = math.hypot(x - cluster["centroid_x"], y - cluster["centroid_y"])
+				if dist > FUSION_MINUTIAE_CLUSTER_RADIUS:
+					continue
+				
+				angle_diff = _angle_difference(angle, cluster["mean_angle"])
+				if angle_diff > FUSION_ANGLE_TOLERANCE:
+					continue
+				
+				# Add to cluster
+				cluster["sum_weights"] += combined_weight
+				cluster["sum_x"] += combined_weight * x
+				cluster["sum_y"] += combined_weight * y
+				cluster["sum_cos"] += combined_weight * math.cos(angle)
+				cluster["sum_sin"] += combined_weight * math.sin(angle)
+				cluster["sample_ids"].add(sample_idx)
+				cluster["kind_weights"][minutia.kind] = cluster["kind_weights"].get(minutia.kind, 0.0) + combined_weight
+				
+				# Update centroid
+				cluster["centroid_x"] = cluster["sum_x"] / cluster["sum_weights"]
+				cluster["centroid_y"] = cluster["sum_y"] / cluster["sum_weights"]
+				cluster["mean_angle"] = math.atan2(cluster["sum_sin"], cluster["sum_cos"])
+				
+				assigned = True
+				break
+			
+			if not assigned:
+				# Create new cluster
+				clusters.append({
+					"sum_weights": combined_weight,
+					"sum_x": combined_weight * x,
+					"sum_y": combined_weight * y,
+					"sum_cos": combined_weight * math.cos(angle),
+					"sum_sin": combined_weight * math.sin(angle),
+					"centroid_x": x,
+					"centroid_y": y,
+					"mean_angle": angle,
+					"sample_ids": {sample_idx},
+					"kind_weights": {minutia.kind: combined_weight},
+				})
+	
+	# Filter by consensus and create final minutiae
+	fused_minutiae: List[Minutia] = []
+	for cluster in clusters:
+		consensus_ratio = len(cluster["sample_ids"]) / float(n_samples)
+		if consensus_ratio < FUSION_MIN_QUALITY:  # Use min 40% consensus
+			continue
+		
+		x = cluster["sum_x"] / cluster["sum_weights"]
+		y = cluster["sum_y"] / cluster["sum_weights"]
+		angle = math.atan2(cluster["sum_sin"], cluster["sum_cos"])
+		
+		# Determine kind by majority vote
+		kind_weights = cluster["kind_weights"]
+		kind = max(kind_weights.items(), key=lambda item: item[1])[0] if kind_weights else "ending"
+		
+		fused_minutiae.append(Minutia(
+			x=float(x),
+			y=float(y),
+			angle=float(angle),
+			kind=kind,
+			quality=float(np.clip(consensus_ratio, 0.0, 1.0)),
+		))
+	
+	return fused_minutiae
+
+
+# ---------------------------------------------------------------------------
+# Template Fusion Pipeline
+
+
+class TemplateFusionPipeline:
+	"""Pipeline for fusing multiple fingerprint samples into a single template."""
+	
+	def __init__(
+		self,
+		base_pipeline: FingerprintPipeline,
+		fusion_settings: FusionSettings,
+	) -> None:
+		"""Initialize fusion pipeline.
+		
+		Args:
+			base_pipeline: Base fingerprint processing pipeline
+			fusion_settings: Fusion configuration settings
+		"""
+		self.base_pipeline = base_pipeline
+		self.fusion_settings = fusion_settings
+	
+	def process_user(
+		self,
+		image_paths: Sequence[Path],
+		identifier: str,
+	) -> Optional[FingerprintTemplate]:
+		"""Process multiple images of same user into fused template.
+		
+		Args:
+			image_paths: List of fingerprint image paths for same user
+			identifier: User identifier
+			
+		Returns:
+			Fused template or None if fusion fails
+		"""
+		if not image_paths:
+			return None
+		
+		# Step 1: Process all images
+		print(f"[fusion] Processing {len(image_paths)} samples for user {identifier}")
+		templates: List[FingerprintTemplate] = []
+		quality_assessments: List[float] = []
+		
+		for path in image_paths:
+			template = self.base_pipeline.process(path, identifier)
+			
+			# Load image for quality assessment
+			image = load_grayscale_image(path)
+			normalised = normalise_image(image)
+			mask = block_variance_segmentation(normalised)
+			diffused = coherence_diffusion(normalised, mask)
+			orientation, frequency = estimate_orientation_and_frequency(diffused, mask)
+			enhanced = apply_log_gabor_enhancement(diffused, mask, orientation, frequency)
+			binary, skeleton = binarise_and_thin(enhanced, mask)
+			
+			# Assess quality
+			quality = assess_image_quality(enhanced, mask, skeleton, template.minutiae or [])
+			quality_assessments.append(quality)
+			
+			if quality >= FUSION_MIN_QUALITY:
+				templates.append(template)
+				print(f"[fusion]   {path.name}: quality={quality:.3f} ✓")
+			else:
+				print(f"[fusion]   {path.name}: quality={quality:.3f} (skipped, below {FUSION_MIN_QUALITY})")
+		
+		if not templates:
+			print(f"[fusion] No valid templates for {identifier}")
+			return None
+		
+		if len(templates) == 1:
+			print(f"[fusion] Only one valid template, returning as-is")
+			return templates[0]
+		
+		# Step 2: Select reference (highest quality)
+		valid_qualities = [q for q, t in zip(quality_assessments, templates) if q >= FUSION_MIN_QUALITY]
+		reference_idx = int(np.argmax(valid_qualities))
+		reference = templates[reference_idx]
+		print(f"[fusion] Selected reference: sample {reference_idx + 1} (quality={valid_qualities[reference_idx]:.3f})")
+		
+		# Step 3: Align minutiae sets to reference
+		aligned_minutiae_sets: List[List[Minutia]] = []
+		alignment_confidences: List[float] = []
+		
+		image_shape = (300, 300)  # Default shape, will be overridden
+		if reference.minutiae:
+			for idx, template in enumerate(templates):
+				if template.minutiae is None:
+					continue
+				
+				if idx == reference_idx:
+					aligned_minutiae_sets.append(list(template.minutiae))
+					alignment_confidences.append(1.0)
+				else:
+					aligned, confidence = align_minutiae_sets(
+						reference.minutiae,
+						template.minutiae,
+						image_shape,
+					)
+					aligned_minutiae_sets.append(aligned)
+					alignment_confidences.append(confidence)
+					print(f"[fusion]   Aligned sample {idx + 1}: confidence={confidence:.3f}")
+		
+		# Step 4: Fuse based on mode
+		fused_vector = None
+		fused_minutiae: List[Minutia] = []
+		
+		if self.fusion_settings.mode in ("features", "full"):
+			fused_vector = fuse_feature_vectors(templates)
+			print(f"[fusion] Feature vectors fused: {len(templates)} templates")
+		else:
+			fused_vector = reference.raw_features
+		
+		if self.fusion_settings.mode in ("minutiae", "full"):
+			if aligned_minutiae_sets:
+				fused_minutiae = fuse_minutiae_advanced(aligned_minutiae_sets, valid_qualities)
+				print(f"[fusion] Minutiae fused: {len(fused_minutiae)} from {len(aligned_minutiae_sets)} sets")
+			else:
+				fused_minutiae = list(reference.minutiae or [])
+		else:
+			fused_minutiae = list(reference.minutiae or [])
+		
+		if fused_vector is None:
+			return None
+		
+		# Step 5: Compute final quality
+		qualities_array = np.array(valid_qualities, dtype=np.float32)
+		avg_quality = float(qualities_array.mean())
+		consensus_score = float(np.mean([m.quality for m in fused_minutiae])) if fused_minutiae else 0.0
+		
+		# Step 6: Encode protected template
+		protected = self.base_pipeline.hasher.encode(fused_vector)
+		
+		print(f"[fusion] Final template: quality={avg_quality:.3f}, consensus={consensus_score:.3f}")
+		
+		return FingerprintTemplate(
+			identifier=identifier,
+			image_path=Path(f"{identifier}__fused"),
+			protected=protected,
+			bit_length=self.base_pipeline.hasher.bit_length,
+			quality=avg_quality,
+			raw_features=fused_vector,
+			minutiae=fused_minutiae,
+			fused=True,
+			source_count=len(templates),
+			consensus_score=consensus_score,
+		)
+
+
+def fuse_protected_templates(
+	templates: Sequence[FingerprintTemplate],
+	hasher: CancelableHasher,
+) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+	if not templates:
+		return None, None
+	bit_length = hasher.bit_length
+	unpacked: List[np.ndarray] = []
+	weights: List[float] = []
+	for template in templates:
+		packed = np.asarray(template.protected, dtype=np.uint8)
+		if packed.size == 0:
+			continue
+		bits = np.unpackbits(packed, bitorder="big")[:bit_length]
+		unpacked.append(bits.astype(np.float32, copy=False))
+		weights.append(max(template.quality, 1e-6))
+	if not unpacked:
+		return None, None
+	weights_arr = np.asarray(weights, dtype=np.float32)
+	if np.allclose(weights_arr.sum(), 0.0):
+		weights_arr = np.ones_like(weights_arr) / float(len(weights_arr))
+	else:
+		weights_arr /= weights_arr.sum()
+	stacked = np.stack(unpacked, axis=0)
+	weighted = weights_arr @ stacked
+	fused_bits = (weighted > 0.5).astype(np.uint8)
+	tie_mask = np.isclose(weighted, 0.5, atol=1e-6)
+	return fused_bits, tie_mask
+
+
+def fuse_minutiae_consensus(
+	templates: Sequence[FingerprintTemplate],
+	settings: FusionSettings,
+) -> List[Minutia]:
+	if not templates:
+		return []
+	clusters: List[dict] = []
+	for sample_idx, template in enumerate(templates):
+		sample_quality = max(float(template.quality), 1e-6)
+		for minutia in template.minutiae or []:
+			x = float(minutia.x)
+			y = float(minutia.y)
+			angle = float(minutia.angle)
+			local_quality = float(minutia.quality)
+			if not math.isfinite(local_quality) or local_quality <= 0.0:
+				local_quality = 1.0
+			else:
+				local_quality = min(local_quality, 255.0)
+			weight = sample_quality * (local_quality / 255.0)
+			if weight <= 0.0:
+				continue
+			assigned = False
+			for cluster in clusters:
+				dist = math.hypot(x - cluster["centroid_x"], y - cluster["centroid_y"])
+				if dist > settings.distance:
+					continue
+				angle_diff = _angle_difference(angle, cluster["mean_angle"])
+				if angle_diff > settings.angle_rad:
+					continue
+				cluster["sum_weights"] += weight
+				cluster["sum_x"] += weight * x
+				cluster["sum_y"] += weight * y
+				cluster["sum_cos"] += weight * math.cos(angle)
+				cluster["sum_sin"] += weight * math.sin(angle)
+				cluster["sample_ids"].add(sample_idx)
+				cluster["kind_weights"][minutia.kind] = cluster["kind_weights"].get(minutia.kind, 0.0) + weight
+				if cluster["sum_weights"] > 0.0:
+					cluster["centroid_x"] = cluster["sum_x"] / cluster["sum_weights"]
+					cluster["centroid_y"] = cluster["sum_y"] / cluster["sum_weights"]
+					cluster["mean_angle"] = math.atan2(cluster["sum_sin"], cluster["sum_cos"])
+				assigned = True
+				break
+			if not assigned:
+				clusters.append(
+					{
+						"sum_weights": weight,
+						"sum_x": weight * x,
+						"sum_y": weight * y,
+						"sum_cos": weight * math.cos(angle),
+						"sum_sin": weight * math.sin(angle),
+						"centroid_x": x,
+						"centroid_y": y,
+						"mean_angle": angle,
+						"sample_ids": {sample_idx},
+						"kind_weights": {minutia.kind: weight},
+					}
+				)
+	total_samples = len(templates)
+	fused_minutiae: List[Minutia] = []
+	for cluster in clusters:
+		if cluster["sum_weights"] <= 0.0:
+			continue
+		consensus_ratio = len(cluster["sample_ids"]) / float(total_samples)
+		if consensus_ratio < settings.min_consensus:
+			continue
+		x = cluster["sum_x"] / cluster["sum_weights"]
+		y = cluster["sum_y"] / cluster["sum_weights"]
+		angle = math.atan2(cluster["sum_sin"], cluster["sum_cos"])
+		kind_weights = cluster["kind_weights"]
+		if kind_weights:
+			kind = max(kind_weights.items(), key=lambda item: item[1])[0]
+		else:
+			kind = "ending"
+		fused_minutiae.append(
+			Minutia(
+				x=float(x),
+				y=float(y),
+				angle=float(angle),
+				kind=kind,
+				quality=float(np.clip(consensus_ratio, 0.0, 1.0)),
+			)
+		)
+	return fused_minutiae
+
+
+def create_fused_template(
+	identifier: str,
+	templates: Sequence[FingerprintTemplate],
+	hasher: CancelableHasher,
+	settings: FusionSettings,
+) -> Optional[FingerprintTemplate]:
+	if not templates:
+		return None
+	fused_vector = fuse_feature_vectors(templates)
+	if fused_vector is None:
+		return None
+	fused_minutiae = fuse_minutiae_consensus(templates, settings)
+	qualities = np.array([max(t.quality, 1e-6) for t in templates], dtype=np.float32)
+	if np.allclose(qualities.sum(), 0.0):
+		template_weights = np.ones_like(qualities) / float(len(qualities))
+	else:
+		template_weights = qualities / qualities.sum()
+	avg_quality = float(
+		np.clip(np.dot(template_weights, np.array([t.quality for t in templates], dtype=np.float32)), 0.0, 1.0)
+	)
+	consensus_avg = float(np.mean([m.quality for m in fused_minutiae])) if fused_minutiae else 0.0
+	encode_from_vector = hasher.encode(fused_vector)
+	fused_bits, tie_mask = fuse_protected_templates(templates, hasher)
+	if fused_bits is None:
+		protected = encode_from_vector
+	else:
+		bit_length = hasher.bit_length
+		pad = (-bit_length) % 8
+		majority_bits = fused_bits
+		fallback_bits = np.unpackbits(encode_from_vector, bitorder="big")[:bit_length]
+		if tie_mask is not None and tie_mask.any():
+			majority_bits = majority_bits.copy()
+			majority_bits[tie_mask] = fallback_bits[tie_mask]
+		if pad:
+			packed_bits = np.concatenate([majority_bits, np.zeros(pad, dtype=np.uint8)])
+		else:
+			packed_bits = majority_bits
+		protected = np.packbits(packed_bits, bitorder="big")
+	return FingerprintTemplate(
+		identifier=identifier,
+		image_path=Path(f"{identifier}__fused"),
+		protected=protected,
+		bit_length=hasher.bit_length,
+		quality=avg_quality,
+		raw_features=fused_vector,
+		minutiae=fused_minutiae,
+		fused=True,
+		source_count=len(templates),
+		consensus_score=consensus_avg,
+	)
+
+
+
+def fuse_identity_templates(
+	templates: Sequence[FingerprintTemplate],
+	hasher: CancelableHasher,
+	settings: FusionSettings,
+) -> List[FingerprintTemplate]:
+	if not settings.enabled:
+		return list(templates)
+	grouped: dict[str, List[FingerprintTemplate]] = {}
+	for template in templates:
+		grouped.setdefault(template.identifier, []).append(template)
+	result: List[FingerprintTemplate] = []
+	for identifier, group in grouped.items():
+		if len(group) <= 1:
+			result.extend(group)
+			continue
+		fused = create_fused_template(identifier, group, hasher, settings)
+		if fused is None:
+			result.extend(group)
+			continue
+		result.append(fused)
+		if settings.keep_raw:
+			result.extend(group)
+	return result
+
+
+def evaluate_quality(
+	minutiae: Sequence[Minutia],
+	mask: np.ndarray,
+	orientation: np.ndarray,
+	frequency: np.ndarray,
+	skeleton: np.ndarray,
+	enhanced: np.ndarray,
+	diffused: np.ndarray,
+	*,
+	level3: Optional[Sequence[Pore]] = None,
+) -> float:
+	"""Estimate a 0-1 quality score for the fingerprint sample."""
+	if mask.size == 0:
+		return 0.0
+	mask_bool = mask.astype(bool)
+	foreground_ratio = float(mask_bool.mean()) if mask_bool.size else 0.0
+	skeleton_ratio = float(np.clip(skeleton.astype(np.float32).mean(), 0.0, 1.0)) if skeleton.size else 0.0
+	minutiae_ratio = 0.0
+	if MAX_MINUTIAE_ENCODER > 0:
+		minutiae_ratio = min(len(minutiae), MAX_MINUTIAE_ENCODER) / float(MAX_MINUTIAE_ENCODER)
+	orientation_array = np.asarray(orientation, dtype=np.float32)
+	orientation_valid = 0.0
+	if orientation_array.size:
+		valid_mask = np.isfinite(orientation_array) & (np.abs(orientation_array) > 1e-3)
+		orientation_valid = float(np.count_nonzero(valid_mask)) / float(orientation_array.size)
+	frequency_array = np.asarray(frequency, dtype=np.float32)
+	freq_valid = 0.0
+	if frequency_array.size:
+		valid_freq = np.isfinite(frequency_array) & (frequency_array > 0.0)
+		freq_valid = float(np.count_nonzero(valid_freq)) / float(frequency_array.size)
+	contrast = 0.0
+	diffused_contrast = 0.0
+	if mask_bool.any():
+		roi = enhanced[mask_bool]
+		roi_std = float(np.std(roi)) if roi.size else 0.0
+		contrast = float(np.clip(roi_std / 64.0, 0.0, 1.0))
+		diff_roi = diffused[mask_bool]
+		diff_std = float(np.std(diff_roi)) if diff_roi.size else 0.0
+		diffused_contrast = float(np.clip(diff_std / 64.0, 0.0, 1.0))
+	level3_density = 0.0
+	if level3:
+		level3_density = min(len(level3) / 25.0, 1.0)
+	components = (
+		(0.23, minutiae_ratio),
+		(0.20, foreground_ratio),
+		(0.14, skeleton_ratio),
+		(0.14, orientation_valid),
+		(0.10, freq_valid),
+		(0.09, contrast),
+		(0.05, diffused_contrast),
+	)
+	score = sum(weight * value for weight, value in components)
+	score += 0.05 * level3_density
+	return float(np.clip(score, 0.0, 1.0))
+
+
 def build_feature_vector(
 	minutiae: Sequence[Minutia],
 	mask: np.ndarray,
@@ -866,7 +1634,12 @@ def save_template(template: FingerprintTemplate, output_dir: Path, *, overwrite:
 	return target
 
 
-def load_templates_from_directory(directory: Path) -> List[FingerprintTemplate]:
+def load_templates_from_directory(
+	directory: Path,
+	*,
+	prefer_fused: bool = True,
+	include_raw_when_fused: bool = False,
+) -> List[FingerprintTemplate]:
 	if not directory.exists() or not directory.is_dir():
 		raise FileNotFoundError(f"Template directory not found: {directory}")
 	templates: List[FingerprintTemplate] = []
@@ -881,28 +1654,133 @@ def load_templates_from_directory(directory: Path) -> List[FingerprintTemplate]:
 			templates.append(loaded)
 		else:
 			print(f"[warning] Ignoring {file_path.name}: incompatible template format")
-	return templates
+	if not templates:
+		return templates
+	grouped: dict[str, List[FingerprintTemplate]] = {}
+	for template in templates:
+		grouped.setdefault(template.identifier, []).append(template)
+	resolved: List[FingerprintTemplate] = []
+	for identifier, group in grouped.items():
+		fused_templates = [t for t in group if t.fused]
+		non_fused = [t for t in group if not t.fused]
+		if prefer_fused and fused_templates:
+			resolved.extend(fused_templates)
+			if include_raw_when_fused and non_fused:
+				resolved.extend(non_fused)
+		elif not prefer_fused and non_fused:
+			resolved.extend(non_fused)
+		else:
+			resolved.extend(group)
+	return resolved
 
 
 def build_template_cache(pipeline: FingerprintPipeline,
 					 raw_dir: Path,
 					 output_dir: Path,
 					 *,
-					 overwrite: bool = False) -> Tuple[int, int, int]:
+					 overwrite: bool = False,
+					 quality_threshold: float = 0.0,
+			 fusion: Optional[FusionSettings] = None) -> Tuple[int, int, int, int, int]:
 	image_paths = enumerate_database(raw_dir)
 	total = len(image_paths)
 	processed = 0
-	skipped = 0
+	skipped_existing = 0
+	skipped_low_quality = 0
+	fused_created = 0
+	
+	# Group images by identity
+	paths_by_identity: dict[str, List[Path]] = {}
 	for path in image_paths:
-		target = template_output_path(output_dir, path)
-		if target.exists() and not overwrite:
-			skipped += 1
-			continue
 		identifier = infer_identity_from_name(path)
-		template = pipeline.process(path, identifier)
-		save_template(template, output_dir, overwrite=True)
-		processed += 1
-	return processed, skipped, total
+		paths_by_identity.setdefault(identifier, []).append(path)
+	
+	fusion_settings = fusion or FusionSettings()
+	
+	# Check if we should use advanced fusion pipeline
+	use_advanced_fusion = (
+		fusion_settings.enabled and 
+		fusion_settings.mode in ("minutiae", "features", "full")
+	)
+	
+	if use_advanced_fusion:
+		fusion_pipeline = TemplateFusionPipeline(pipeline, fusion_settings)
+	
+	for identifier, identity_paths in paths_by_identity.items():
+		# Use advanced fusion if enabled
+		if use_advanced_fusion and len(identity_paths) > 1:
+			fused_template = fusion_pipeline.process_user(identity_paths, identifier)
+			if fused_template is not None and fused_template.quality >= quality_threshold:
+				save_template(fused_template, output_dir, overwrite=True)
+				fused_created += 1
+				processed += len(identity_paths)
+			else:
+				if fused_template is not None:
+					print(f"[warning] Fused template for {identifier} below quality threshold")
+				skipped_low_quality += len(identity_paths)
+			continue
+		
+		# Original per-image processing
+		identity_templates: List[FingerprintTemplate] = []
+		for path in identity_paths:
+			target = template_output_path(output_dir, path)
+			template: Optional[FingerprintTemplate] = None
+			reuse_existing = False
+			
+			if target.exists() and not overwrite:
+				try:
+					with target.open("rb") as handle:
+						loaded = pickle.load(handle)
+				except Exception as exc:  # noqa: BLE001
+					print(f"[warning] Failed to reuse template {target.name}: {exc}")
+				else:
+					if isinstance(loaded, FingerprintTemplate):
+						if loaded.quality < quality_threshold:
+							print(
+								f"[warning] Removing cached template {target.name}: quality {loaded.quality:.3f} "
+								f"below threshold {quality_threshold:.3f}."
+							)
+							try:
+								target.unlink()
+							except OSError as cleanup_exc:  # noqa: PERF203
+								print(
+									f"[warning] Failed to remove outdated template {target.name}: {cleanup_exc}"
+								)
+						else:
+							template = loaded
+							reuse_existing = True
+					else:
+						print(f"[warning] Ignoring cached file {target.name}: incompatible format")
+			
+			if template is None:
+				template = pipeline.process(path, identifier)
+				if template.quality < quality_threshold:
+					print(
+						f"[warning] Skipping {path.name}: quality {template.quality:.3f} below threshold "
+						f"{quality_threshold:.3f}."
+					)
+					if target.exists():
+						try:
+							target.unlink()
+						except OSError as exc:  # noqa: PERF203
+							print(f"[warning] Failed to remove outdated template {target.name}: {exc}")
+					skipped_low_quality += 1
+					continue
+				save_template(template, output_dir, overwrite=True)
+				processed += 1
+			else:
+				if reuse_existing:
+					skipped_existing += 1
+			
+			identity_templates.append(template)
+		
+		# Simple fusion for backward compatibility
+		if not use_advanced_fusion and fusion_settings.enabled and len(identity_templates) > 1:
+			fused_template = create_fused_template(identifier, identity_templates, pipeline.hasher, fusion_settings)
+			if fused_template is not None:
+				save_template(fused_template, output_dir, overwrite=True)
+				fused_created += 1
+	
+	return processed, skipped_existing, skipped_low_quality, total, fused_created
 
 
 # ---------------------------------------------------------------------------
@@ -934,6 +1812,17 @@ class FingerprintPipeline:
 		if self.include_level3:
 			level3_features = detect_pores(enhanced, mask)
 
+		quality_score = evaluate_quality(
+			minutiae,
+			mask,
+			orientation,
+			frequency,
+			skeleton,
+			enhanced,
+			diffused,
+			level3=level3_features if self.include_level3 else None,
+		)
+
 		feature_vector = build_feature_vector(
 			minutiae,
 			mask,
@@ -951,6 +1840,10 @@ class FingerprintPipeline:
 			image_path=image_path,
 			protected=protected,
 			bit_length=self.hasher.bit_length,
+			quality=quality_score,
+			raw_features=feature_vector.astype(np.float32, copy=True),
+			minutiae=list(minutiae),
+			consensus_score=1.0,
 		)
 
 
@@ -1012,12 +1905,19 @@ def infer_identity_from_name(path: Path) -> str:
 	return stem
 
 
-def build_gallery(pipeline: FingerprintPipeline, image_paths: Sequence[Path]) -> List[FingerprintTemplate]:
+def build_gallery(
+	pipeline: FingerprintPipeline,
+	image_paths: Sequence[Path],
+	*,
+	fusion: Optional[FusionSettings] = None,
+) -> List[FingerprintTemplate]:
 	templates: List[FingerprintTemplate] = []
 	for path in image_paths:
 		identifier = infer_identity_from_name(path)
 		template = pipeline.process(path, identifier)
 		templates.append(template)
+	if fusion is not None and fusion.enabled:
+		return fuse_identity_templates(templates, pipeline.hasher, fusion)
 	return templates
 
 
@@ -1053,6 +1953,43 @@ def parse_args() -> argparse.Namespace:
 		default=DEFAULT_HASH_COUNT,
 		help="Number of independent projection hashes to fuse (default: %(default)s).",
 	)
+	parser.add_argument(
+		"--quality-threshold",
+		type=float,
+		default=DEFAULT_QUALITY_THRESHOLD,
+		help="Minimum template quality (0-1) required for saving and matching (default: %(default)s).",
+	)
+	parser.add_argument("--no-fusion", action="store_true", help="Disable template fusion.")
+	parser.add_argument(
+		"--fusion-mode",
+		type=str,
+		choices=["none", "minutiae", "features", "full"],
+		default="full",
+		help="Fusion mode: none (disabled), minutiae (only minutiae), features (only vectors), full (both) (default: %(default)s).",
+	)
+	parser.add_argument(
+		"--fusion-distance",
+		type=float,
+		default=DEFAULT_FUSION_DISTANCE,
+		help="Maximum spatial distance (pixels) when clustering minutiae for consensus (default: %(default)s).",
+	)
+	parser.add_argument(
+		"--fusion-angle",
+		type=float,
+		default=DEFAULT_FUSION_ANGLE_DEG,
+		help="Maximum angular difference (degrees) for minutiae clustering (default: %(default)s).",
+	)
+	parser.add_argument(
+		"--fusion-min-consensus",
+		type=float,
+		default=DEFAULT_FUSION_MIN_CONSENSUS,
+		help="Minimum fraction of samples that must support a minutia to keep it (default: %(default)s).",
+	)
+	parser.add_argument(
+		"--fusion-keep-raw",
+		action="store_true",
+		help="Keep individual templates alongside fused ones in memory operations.",
+	)
 	return parser.parse_args()
 
 
@@ -1062,6 +1999,26 @@ def main() -> None:
 		raise SystemExit("--projection-dim must be positive.")
 	if args.hash_count <= 0:
 		raise SystemExit("--hash-count must be positive.")
+	if not (0.0 <= args.quality_threshold <= 1.0):
+		raise SystemExit("--quality-threshold must be between 0 and 1.")
+	if args.fusion_distance <= 0.0:
+		raise SystemExit("--fusion-distance must be positive.")
+	if args.fusion_angle <= 0.0 or args.fusion_angle > 180.0:
+		raise SystemExit("--fusion-angle must be in the range (0, 180].")
+	if not (0.0 < args.fusion_min_consensus <= 1.0):
+		raise SystemExit("--fusion-min-consensus must be within (0, 1].")
+	
+	# Determine fusion mode
+	fusion_mode = "none" if args.no_fusion else args.fusion_mode
+	
+	fusion_settings = FusionSettings(
+		enabled=(fusion_mode != "none"),
+		distance=args.fusion_distance,
+		angle_deg=args.fusion_angle,
+		min_consensus=args.fusion_min_consensus,
+		keep_raw=args.fusion_keep_raw,
+		mode=fusion_mode,
+	)
 	hasher = CancelableHasher(
 		feature_dim=FEATURE_VECTOR_DIM,
 		projection_dim=args.projection_dim,
@@ -1073,18 +2030,28 @@ def main() -> None:
 
 	if args.build_from is not None:
 		try:
-			processed, skipped, total = build_template_cache(
+			processed, skipped_existing, skipped_low_quality, total, fused_created = build_template_cache(
 				pipeline,
 				raw_dir=args.build_from,
 				output_dir=templates_dir,
 				overwrite=args.overwrite_templates,
+				quality_threshold=args.quality_threshold,
+				fusion=fusion_settings,
 			)
 		except FileNotFoundError as exc:
 			raise SystemExit(str(exc)) from exc
-		print(
-			f"[info] Template cache updated: processed {processed} of {total} images "
-			f"(skipped {skipped}) into {templates_dir}"
-		)
+		summary_parts = [
+			f"processed {processed} of {total} images",
+			f"skipped existing {skipped_existing}",
+			f"low quality {skipped_low_quality}",
+		]
+		if fusion_settings.enabled:
+			summary_parts.append(f"fused {fused_created}")
+		print(f"[info] Template cache updated: {', '.join(summary_parts)} into {templates_dir}")
+		if skipped_low_quality:
+			print(
+				f"[info] {skipped_low_quality} images were rejected for quality below {args.quality_threshold:.2f}."
+			)
 		if args.probe is None:
 			print("[info] Cache build finished. Provide --probe to run identification/verification.")
 			return
@@ -1092,11 +2059,12 @@ def main() -> None:
 	if args.probe is None:
 		raise SystemExit("No probe fingerprint provided. Use --probe <image> to run matching.")
 
-	if args.mode == "verify" and not args.claim:
-		raise SystemExit("--claim is required in verify mode.")
-
 	try:
-		gallery_templates = load_templates_from_directory(templates_dir)
+		gallery_templates = load_templates_from_directory(
+			templates_dir,
+			prefer_fused=not args.no_fusion,
+			include_raw_when_fused=fusion_settings.keep_raw,
+		)
 	except FileNotFoundError as exc:
 		raise SystemExit(str(exc)) from exc
 
@@ -1104,9 +2072,41 @@ def main() -> None:
 		raise SystemExit(
 			f"No templates found in {templates_dir}. Build them first with --build-from <folder>."
 		)
+	low_quality_cached = [t for t in gallery_templates if t.quality < args.quality_threshold]
+	if low_quality_cached:
+		print(
+			f"[warning] Ignoring {len(low_quality_cached)} cached templates below quality threshold "
+			f"{args.quality_threshold:.2f}. Rebuild them if needed."
+		)
+	gallery_templates = [t for t in gallery_templates if t.quality >= args.quality_threshold]
+	if not gallery_templates:
+		raise SystemExit(
+			f"No templates meet the quality threshold {args.quality_threshold:.2f}. Rebuild with "
+			"--build-from using higher quality images."
+		)
+	if fusion_settings.enabled and not args.no_fusion and not any(t.fused for t in gallery_templates):
+		fused_gallery = fuse_identity_templates(gallery_templates, hasher, fusion_settings)
+		if fused_gallery:
+			gallery_templates = fused_gallery
 
 	probe_identifier = infer_identity_from_name(args.probe)
 	probe_template = pipeline.process(args.probe, probe_identifier)
+	if probe_template.quality < args.quality_threshold:
+		raise SystemExit(
+			f"Probe fingerprint quality {probe_template.quality:.3f} below threshold "
+			f"{args.quality_threshold:.3f}. Capture another image."
+		)
+	print(f"[info] Probe quality: {probe_template.quality:.3f}")
+
+	if args.mode == "verify":
+		if not args.claim:
+			raise SystemExit("--claim is required in verify mode.")
+		claim_candidates = [t for t in gallery_templates if t.identifier == args.claim]
+		if not claim_candidates:
+			raise SystemExit(
+				f"No templates for claimed identity '{args.claim}' meet the quality threshold "
+				f"{args.quality_threshold:.2f}. Choose another image or rebuild the gallery."
+			)
 
 	matcher = FingerprintMatcher(gallery_templates, hasher=hasher)
 
