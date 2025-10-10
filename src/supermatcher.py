@@ -104,8 +104,9 @@ IMAGE_EXTENSIONS = {".bmp", ".png", ".jpg", ".jpeg", ".tif", ".tiff"}
 TEMPLATE_EXTENSION = ".fpt"
 
 
-# Phase 1 parameters
-NORMALISATION_BLOCK = 16
+# Phase 1 parameters (REVERTED to original)
+NORMALISATION_BLOCK = 16  # REVERTED from 8 back to 16
+NORMALISATION_BLOCK_SECONDARY = 16  # For dual-block mode
 NORMALISATION_MEAN = 100.0
 NORMALISATION_VAR = 100.0
 
@@ -113,8 +114,10 @@ SEGMENT_BLOCK = 16
 SEGMENT_THRESHOLD = 70.0
 
 
-# Phase 2 parameters
-CED_ITERATIONS = 12
+# Phase 2 parameters (REVERTED to original)
+CED_ITERATIONS = 12  # REVERTED from 15 back to 12
+CED_ITERATIONS_MIN = 12  # Same as base
+CED_ITERATIONS_MAX = 14  # Small range only for worst cases
 CED_DELTA_T = 0.15
 CED_TENSOR_SIGMA = 2.0
 CED_GRAD_SIGMA = 1.0
@@ -127,7 +130,7 @@ LOG_GABOR_SIGMA_R = 1.5
 LOG_GABOR_SIGMA_THETA_DEG = 12.0
 
 
-# Phase 3 parameters
+# Phase 3 parameters (REVERTED to original)
 BINARISATION_METHOD = cv2.THRESH_BINARY + cv2.THRESH_OTSU
 THINNING_MAX_ITER = 40
 MINUTIA_DISTANCE_THRESHOLD = 5
@@ -160,13 +163,14 @@ DEFAULT_FUSION_DISTANCE = 12.0
 DEFAULT_FUSION_ANGLE_DEG = 20.0
 DEFAULT_FUSION_MIN_CONSENSUS = 0.4
 
-# Advanced fusion parameters
-FUSION_MIN_QUALITY = 0.3
+# Advanced fusion parameters (REVERTED to original)
+FUSION_MIN_QUALITY = 0.3  # REVERTED from 0.28 back to 0.3
 FUSION_ALIGNMENT_THRESHOLD = 15.0  # pixels
-FUSION_MINUTIAE_CLUSTER_RADIUS = 8.0  # pixels
+FUSION_MINUTIAE_CLUSTER_RADIUS = 8.0  # REVERTED from 11.0 back to 8.0
 FUSION_ANGLE_TOLERANCE = math.radians(20.0)
 FUSION_RANSAC_ITERATIONS = 1000
 FUSION_RANSAC_THRESHOLD = 10.0
+DEFAULT_FUSION_MIN_CONSENSUS = 0.4  # REVERTED from 0.35 back to 0.4
 
 
 # ---------------------------------------------------------------------------
@@ -218,17 +222,41 @@ TEXTURE_FEATURES_PER_KERNEL = 2
 
 
 def load_grayscale_image(path: Path) -> np.ndarray:
+	"""Load fingerprint image - REVERTED to original (no filtering)."""
 	image = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
 	if image is None:
 		raise FileNotFoundError(f"Unable to read fingerprint image: {path}")
 	return image.astype(np.float32)
 
 
+def pre_denoise(image: np.ndarray) -> np.ndarray:
+	"""Apply bilateral filtering only (SIMPLIFIED).
+	
+	ROLLBACK: Removed NLMeans denoising as it was too aggressive for low-quality fingerprints.
+	Now uses only bilateral filter to preserve ridge details.
+	
+	Args:
+		image: Input grayscale image (float32)
+	
+	Returns:
+		Denoised image maintaining ridge structures
+	"""
+	# Convert to uint8 for denoising operations
+	img_uint8 = np.clip(image, 0, 255).astype(np.uint8)
+	
+	# Apply only bilateral filter (preserves edges while smoothing)
+	# d=5: neighborhood diameter, sigmaColor=50, sigmaSpace=50
+	bilateral = cv2.bilateralFilter(img_uint8, d=5, sigmaColor=50, sigmaSpace=50)
+	
+	return bilateral.astype(np.float32)
+
+
 def normalise_image(image: np.ndarray,
 					block_size: int = NORMALISATION_BLOCK,
 					mean0: float = NORMALISATION_MEAN,
-					var0: float = NORMALISATION_VAR) -> np.ndarray:
-	"""Normalise intensity using local statistics to enforce desired mean/variance."""
+					var0: float = NORMALISATION_VAR,
+					dual_block: bool = False) -> np.ndarray:
+	"""Normalise intensity using local statistics - REVERTED to original single-block."""
 	if image.dtype != np.float32:
 		image = image.astype(np.float32)
 
@@ -280,11 +308,12 @@ def coherence_diffusion(image: np.ndarray,
 						grad_sigma: float = CED_GRAD_SIGMA,
 						tensor_sigma: float = CED_TENSOR_SIGMA,
 						alpha: float = CED_ALPHA,
-						beta: float = CED_BETA) -> np.ndarray:
-	"""Apply coherence-enhancing diffusion following Weickert's formulation."""
-
+						beta: float = CED_BETA,
+						adaptive_iterations: bool = False) -> np.ndarray:
+	"""Apply coherence-enhancing diffusion - REVERTED to original (no adaptation)."""
 	I = image.astype(np.float64, copy=True)
 	valid = mask.astype(bool)
+	
 	for _ in range(iterations):
 		gx, gy = gaussian_derivatives(I, grad_sigma)
 		Jxx = cv2.GaussianBlur(gx * gx, (0, 0), tensor_sigma)
@@ -603,17 +632,89 @@ def extract_minutiae(skeleton: np.ndarray,
 
 def validate_minutiae(minutiae: List[Minutia],
 					  skeleton: np.ndarray,
-					  mask: np.ndarray) -> List[Minutia]:
-	"""Remove spurious minutiae based on spatial heuristics."""
+					  mask: np.ndarray,
+					  validate_with_context: bool = True) -> List[Minutia]:
+	"""Remove spurious minutiae based on spatial heuristics.
+	
+	Args:
+		minutiae: List of extracted minutiae
+		skeleton: Thinned ridge skeleton
+		mask: Foreground mask
+		validate_with_context: If True, apply neighborhood and angular consistency checks
+	
+	Returns:
+		Filtered minutiae list
+	"""
 	if not minutiae:
 		return []
 
+	# First pass: mask-based filtering
 	filtered: List[Minutia] = []
 	for m in minutiae:
 		if not mask[int(m.y), int(m.x)]:
 			continue
 		filtered.append(m)
+	
+	# Second pass: context-based validation (neighborhood + angular consistency)
+	if validate_with_context:
+		h, w = skeleton.shape
+		validated: List[Minutia] = []
+		
+		for m in filtered:
+			quality = m.quality
+			x_int, y_int = int(m.x), int(m.y)
+			
+			# Sample skeleton in 12-pixel radius
+			radius = 12
+			y_min = max(0, y_int - radius)
+			y_max = min(h, y_int + radius + 1)
+			x_min = max(0, x_int - radius)
+			x_max = min(w, x_int + radius + 1)
+			
+			# Count active skeleton pixels
+			neighborhood = skeleton[y_min:y_max, x_min:x_max]
+			skeleton_pixel_count = int(np.sum(neighborhood > 0))
+			
+			if skeleton_pixel_count < 8:
+				# Insufficient ridge support, penalize quality
+				quality *= 0.7
+			
+			# Check angular consistency in 15-pixel radius
+			radius_ori = 15
+			y_min_ori = max(0, y_int - radius_ori)
+			y_max_ori = min(h, y_int + radius_ori + 1)
+			x_min_ori = max(0, x_int - radius_ori)
+			x_max_ori = min(w, x_int + radius_ori + 1)
+			
+			# Compute mean orientation from nearby skeleton pixels
+			ridge_patch = skeleton[y_min_ori:y_max_ori, x_min_ori:x_max_ori]
+			ridge_coords = np.argwhere(ridge_patch > 0)
+			
+			if len(ridge_coords) > 3:
+				# Estimate local ridge direction using gradient
+				gy, gx = np.gradient(ridge_patch.astype(np.float32))
+				mean_angle = float(np.arctan2(gy.mean(), gx.mean()))
+				
+				# Compute angle difference
+				angle_diff = abs(mean_angle - m.angle)
+				angle_diff = min(angle_diff, 2.0 * math.pi - angle_diff)
+				
+				if angle_diff > math.radians(45.0):
+					# Large angle inconsistency, penalize quality
+					quality *= 0.8
+			
+			# Create validated minutia with updated quality
+			validated.append(Minutia(
+				x=m.x,
+				y=m.y,
+				angle=m.angle,
+				kind=m.kind,
+				quality=quality,
+			))
+		
+		filtered = validated
 
+	# Third pass: spatial proximity filtering
 	filtered.sort(key=lambda m: m.quality, reverse=True)
 	accepted: List[Minutia] = []
 	for m in filtered:
@@ -629,6 +730,86 @@ def validate_minutiae(minutiae: List[Minutia],
 			accepted.append(m)
 
 	return accepted
+
+
+def refine_minutiae_geometry(minutiae: List[Minutia],
+							  skeleton: np.ndarray,
+							  binary: np.ndarray) -> List[Minutia]:
+	"""Refine minutiae positions and validate geometry using morphology.
+	
+	Args:
+		minutiae: List of validated minutiae
+		skeleton: Thinned ridge skeleton
+		binary: Binary fingerprint image
+	
+	Returns:
+		Refined minutiae with adjusted coordinates and validated types
+	"""
+	if not minutiae:
+		return []
+	
+	h, w = skeleton.shape
+	refined: List[Minutia] = []
+	
+	for m in minutiae:
+		x_int, y_int = int(m.x), int(m.y)
+		
+		# Extract 8-pixel radius neighborhood for geometry validation
+		radius = 8
+		y_min = max(0, y_int - radius)
+		y_max = min(h, y_int + radius + 1)
+		x_min = max(0, x_int - radius)
+		x_max = min(w, x_int + radius + 1)
+		
+		skeleton_patch = skeleton[y_min:y_max, x_min:x_max]
+		
+		# Validate minutia type using morphological analysis
+		if m.kind == "ending":
+			# For endings: verify ridge truly terminates (dilation check)
+			dilated = cv2.dilate(skeleton_patch, np.ones((3, 3), np.uint8), iterations=1)
+			# Ending should have limited connectivity
+			if dilated.sum() > skeleton_patch.sum() * 2.5:
+				# Too much connectivity after dilation, might be false ending
+				continue
+		
+		elif m.kind == "bifurcation":
+			# For bifurcations: confirm 3 distinct branches exist
+			# Count connected components in neighborhood
+			coords = np.argwhere(skeleton_patch > 0)
+			if len(coords) < 3:
+				# Insufficient ridge pixels for bifurcation
+				continue
+		
+		# Adjust coordinates to local center of mass (max 3 pixels displacement)
+		skeleton_coords = np.argwhere(skeleton_patch > 0)
+		if len(skeleton_coords) > 0:
+			# Compute center of mass
+			cy, cx = skeleton_coords.mean(axis=0)
+			
+			# Convert to global coordinates
+			global_cy = y_min + cy
+			global_cx = x_min + cx
+			
+			# Check displacement
+			displacement = math.hypot(global_cx - m.x, global_cy - m.y)
+			
+			if displacement < 3.0:
+				# Accept adjusted position
+				refined.append(Minutia(
+					x=float(global_cx),
+					y=float(global_cy),
+					angle=m.angle,
+					kind=m.kind,
+					quality=m.quality,
+				))
+			else:
+				# Displacement too large, keep original
+				refined.append(m)
+		else:
+			# No skeleton pixels found, keep original
+			refined.append(m)
+	
+	return refined
 
 
 def detect_pores(image: np.ndarray,
@@ -973,12 +1154,14 @@ def align_minutiae_sets(
 def fuse_minutiae_advanced(
 	aligned_minutiae_sets: Sequence[Sequence[Minutia]],
 	quality_weights: Sequence[float],
+	adaptive_consensus: bool = True,
 ) -> List[Minutia]:
-	"""Fuse multiple aligned minutiae sets using spatial clustering.
+	"""Fuse multiple aligned minutiae sets using improved spatial clustering.
 	
 	Args:
 		aligned_minutiae_sets: List of aligned minutiae lists
 		quality_weights: Quality weight for each set
+		adaptive_consensus: If True, adjust consensus threshold based on sample quality
 		
 	Returns:
 		Fused minutiae list with consensus filtering
@@ -987,7 +1170,6 @@ def fuse_minutiae_advanced(
 		return []
 	
 	n_samples = len(aligned_minutiae_sets)
-	clusters: List[dict] = []
 	
 	# Normalize weights
 	weights = np.array(quality_weights, dtype=np.float32)
@@ -996,63 +1178,91 @@ def fuse_minutiae_advanced(
 	else:
 		weights = np.ones_like(weights) / float(len(weights))
 	
-	# Aggregate minutiae from all sets
+	# Compute average sample quality for adaptive consensus
+	avg_quality = float(weights.mean())
+	
+	# Adjust consensus threshold adaptively
+	if adaptive_consensus:
+		min_consensus_adjusted = max(0.25, DEFAULT_FUSION_MIN_CONSENSUS * avg_quality)
+		print(f"[fusion] Adaptive consensus threshold: {min_consensus_adjusted:.2f} (avg quality: {avg_quality:.2f})")
+	else:
+		min_consensus_adjusted = DEFAULT_FUSION_MIN_CONSENSUS
+	
+	# Sort minutiae by quality before clustering (process best first)
+	all_minutiae_with_meta: List[Tuple[Minutia, int, float]] = []
 	for sample_idx, minutiae_set in enumerate(aligned_minutiae_sets):
 		weight = float(weights[sample_idx])
-		
 		for minutia in minutiae_set:
-			x, y, angle = float(minutia.x), float(minutia.y), float(minutia.angle)
-			local_quality = max(float(minutia.quality), 1e-6)
-			combined_weight = weight * local_quality
+			all_minutiae_with_meta.append((minutia, sample_idx, weight))
+	
+	# Sort by quality descending
+	all_minutiae_with_meta.sort(key=lambda item: item[0].quality * item[2], reverse=True)
+	
+	clusters: List[dict] = []
+	
+	# Aggregate minutiae from all sets with improved clustering
+	for minutia, sample_idx, weight in all_minutiae_with_meta:
+		x, y, angle = float(minutia.x), float(minutia.y), float(minutia.angle)
+		local_quality = max(float(minutia.quality), 1e-6)
+		combined_weight = weight * local_quality
+		
+		# Exponentially weighted quality (weight^1.5 for emphasis on high-quality samples)
+		combined_weight = combined_weight ** 1.5
+		
+		# Find matching cluster using weighted distance
+		assigned = False
+		for cluster in clusters:
+			spatial_dist = math.hypot(x - cluster["centroid_x"], y - cluster["centroid_y"])
+			if spatial_dist > FUSION_MINUTIAE_CLUSTER_RADIUS:
+				continue
 			
-			# Find matching cluster
-			assigned = False
-			for cluster in clusters:
-				dist = math.hypot(x - cluster["centroid_x"], y - cluster["centroid_y"])
-				if dist > FUSION_MINUTIAE_CLUSTER_RADIUS:
-					continue
-				
-				angle_diff = _angle_difference(angle, cluster["mean_angle"])
-				if angle_diff > FUSION_ANGLE_TOLERANCE:
-					continue
-				
-				# Add to cluster
-				cluster["sum_weights"] += combined_weight
-				cluster["sum_x"] += combined_weight * x
-				cluster["sum_y"] += combined_weight * y
-				cluster["sum_cos"] += combined_weight * math.cos(angle)
-				cluster["sum_sin"] += combined_weight * math.sin(angle)
-				cluster["sample_ids"].add(sample_idx)
-				cluster["kind_weights"][minutia.kind] = cluster["kind_weights"].get(minutia.kind, 0.0) + combined_weight
-				
-				# Update centroid
-				cluster["centroid_x"] = cluster["sum_x"] / cluster["sum_weights"]
-				cluster["centroid_y"] = cluster["sum_y"] / cluster["sum_weights"]
-				cluster["mean_angle"] = math.atan2(cluster["sum_sin"], cluster["sum_cos"])
-				
-				assigned = True
-				break
+			angle_diff = _angle_difference(angle, cluster["mean_angle"])
+			if angle_diff > FUSION_ANGLE_TOLERANCE:
+				continue
 			
-			if not assigned:
-				# Create new cluster
-				clusters.append({
-					"sum_weights": combined_weight,
-					"sum_x": combined_weight * x,
-					"sum_y": combined_weight * y,
-					"sum_cos": combined_weight * math.cos(angle),
-					"sum_sin": combined_weight * math.sin(angle),
-					"centroid_x": x,
-					"centroid_y": y,
-					"mean_angle": angle,
-					"sample_ids": {sample_idx},
-					"kind_weights": {minutia.kind: combined_weight},
-				})
+			# Weighted distance combining spatial and angular components
+			weighted_dist = spatial_dist * (1.0 + 0.3 * angle_diff / FUSION_ANGLE_TOLERANCE)
+			
+			if weighted_dist > FUSION_MINUTIAE_CLUSTER_RADIUS:
+				continue
+			
+			# Add to cluster
+			cluster["sum_weights"] += combined_weight
+			cluster["sum_x"] += combined_weight * x
+			cluster["sum_y"] += combined_weight * y
+			cluster["sum_cos"] += combined_weight * math.cos(angle)
+			cluster["sum_sin"] += combined_weight * math.sin(angle)
+			cluster["sample_ids"].add(sample_idx)
+			cluster["kind_weights"][minutia.kind] = cluster["kind_weights"].get(minutia.kind, 0.0) + combined_weight
+			
+			# Update centroid
+			cluster["centroid_x"] = cluster["sum_x"] / cluster["sum_weights"]
+			cluster["centroid_y"] = cluster["sum_y"] / cluster["sum_weights"]
+			cluster["mean_angle"] = math.atan2(cluster["sum_sin"], cluster["sum_cos"])
+			
+			assigned = True
+			break
+		
+		if not assigned:
+			# Create new cluster
+			clusters.append({
+				"sum_weights": combined_weight,
+				"sum_x": combined_weight * x,
+				"sum_y": combined_weight * y,
+				"sum_cos": combined_weight * math.cos(angle),
+				"sum_sin": combined_weight * math.sin(angle),
+				"centroid_x": x,
+				"centroid_y": y,
+				"mean_angle": angle,
+				"sample_ids": {sample_idx},
+				"kind_weights": {minutia.kind: combined_weight},
+			})
 	
 	# Filter by consensus and create final minutiae
 	fused_minutiae: List[Minutia] = []
 	for cluster in clusters:
 		consensus_ratio = len(cluster["sample_ids"]) / float(n_samples)
-		if consensus_ratio < FUSION_MIN_QUALITY:  # Use min 40% consensus
+		if consensus_ratio < min_consensus_adjusted:
 			continue
 		
 		x = cluster["sum_x"] / cluster["sum_weights"]
@@ -1070,6 +1280,8 @@ def fuse_minutiae_advanced(
 			kind=kind,
 			quality=float(np.clip(consensus_ratio, 0.0, 1.0)),
 		))
+	
+	print(f"[fusion] Clustered {sum(len(s) for s in aligned_minutiae_sets)} minutiae into {len(fused_minutiae)} fused minutiae")
 	
 	return fused_minutiae
 
@@ -1135,7 +1347,7 @@ class TemplateFusionPipeline:
 			
 			if quality >= FUSION_MIN_QUALITY:
 				templates.append(template)
-				print(f"[fusion]   {path.name}: quality={quality:.3f} ✓")
+				print(f"[fusion]   {path.name}: quality={quality:.3f} OK")
 			else:
 				print(f"[fusion]   {path.name}: quality={quality:.3f} (skipped, below {FUSION_MIN_QUALITY})")
 		
@@ -1795,7 +2007,9 @@ class FingerprintPipeline:
 		self.hasher = hasher
 
 	def process(self, image_path: Path, identifier: str) -> FingerprintTemplate:
+		"""Process fingerprint image - REVERTED to original pipeline."""
 		image = load_grayscale_image(image_path)
+		
 		normalised = normalise_image(image)
 		mask = block_variance_segmentation(normalised)
 		diffused = coherence_diffusion(normalised, mask)
@@ -1848,6 +2062,158 @@ class FingerprintPipeline:
 
 
 # ---------------------------------------------------------------------------
+# Geometric Minutiae Matching (Two-Stage Verification)
+
+
+def compute_geometric_minutiae_score(
+	probe_minutiae: Sequence[Minutia],
+	candidate_minutiae: Sequence[Minutia],
+	distance_threshold: float = MATCH_DISTANCE_THRESHOLD,
+	angle_threshold: float = MATCH_ANGLE_THRESHOLD_RAD,
+) -> float:
+	"""Compute geometric similarity score between two minutiae sets.
+	
+	This function performs direct minutiae-to-minutiae matching using
+	spatial and angular correspondence after RANSAC alignment.
+	
+	Args:
+		probe_minutiae: Probe minutiae list
+		candidate_minutiae: Candidate minutiae list
+		distance_threshold: Max distance for minutiae correspondence (pixels)
+		angle_threshold: Max angle difference for correspondence (radians)
+	
+	Returns:
+		Geometric similarity score in [0, 1] range
+	"""
+	if not probe_minutiae or not candidate_minutiae:
+		return 0.0
+	
+	n_probe = len(probe_minutiae)
+	n_candidate = len(candidate_minutiae)
+	
+	# Extract positions and angles
+	probe_points = np.array([[m.x, m.y] for m in probe_minutiae], dtype=np.float32)
+	cand_points = np.array([[m.x, m.y] for m in candidate_minutiae], dtype=np.float32)
+	
+	# Step 1: Find transformation using RANSAC
+	if n_probe < 3 or n_candidate < 3:
+		# Not enough points for RANSAC, use simple nearest neighbor
+		tree = KDTree(cand_points)
+		distances, _ = tree.query(probe_points, k=1)
+		matches = np.sum(distances < distance_threshold)
+		return float(matches) / float(max(n_probe, n_candidate))
+	
+	# RANSAC to find correspondences
+	best_inliers = 0
+	best_transform = None
+	max_iterations = min(100, n_probe * 2)
+	
+	for _ in range(max_iterations):
+		# Sample 3 random probe minutiae
+		if n_probe < 3:
+			break
+		sample_indices = np.random.choice(n_probe, size=3, replace=False)
+		probe_sample = probe_points[sample_indices]
+		
+		# Find nearest candidate minutiae for each sample
+		tree = KDTree(cand_points)
+		distances, cand_indices = tree.query(probe_sample, k=1)
+		
+		# Skip if correspondences are too far
+		if np.any(distances > distance_threshold * 2):
+			continue
+		
+		cand_sample = cand_points[cand_indices]
+		
+		# Estimate rigid transformation (rotation + translation)
+		try:
+			# Compute centroids
+			probe_centroid = probe_sample.mean(axis=0)
+			cand_centroid = cand_sample.mean(axis=0)
+			
+			# Center points
+			probe_centered = probe_sample - probe_centroid
+			cand_centered = cand_sample - cand_centroid
+			
+			# Compute rotation using SVD
+			H = probe_centered.T @ cand_centered
+			U, _, Vt = np.linalg.svd(H)
+			R = Vt.T @ U.T
+			
+			# Ensure proper rotation (det(R) = 1)
+			if np.linalg.det(R) < 0:
+				Vt[-1, :] *= -1
+				R = Vt.T @ U.T
+			
+			# Compute translation
+			t = cand_centroid - R @ probe_centroid
+			
+			# Transform all probe points
+			transformed = (R @ probe_points.T).T + t
+			
+			# Count inliers (both spatial and angular)
+			tree_full = KDTree(cand_points)
+			distances_full, indices_full = tree_full.query(transformed, k=1)
+			
+			# Check spatial distance
+			spatial_inliers = distances_full < distance_threshold
+			
+			# Check angular consistency for spatial inliers
+			rotation_angle = math.atan2(R[1, 0], R[0, 0])
+			angular_inliers = np.zeros(n_probe, dtype=bool)
+			
+			for i, (is_spatial, cand_idx) in enumerate(zip(spatial_inliers, indices_full)):
+				if not is_spatial:
+					continue
+				
+				# Compare angles
+				probe_angle = probe_minutiae[i].angle
+				cand_angle = candidate_minutiae[cand_idx].angle
+				
+				# Rotate probe angle
+				rotated_angle = (probe_angle + rotation_angle) % (2.0 * math.pi)
+				
+				# Compute angle difference
+				angle_diff = abs(rotated_angle - cand_angle)
+				angle_diff = min(angle_diff, 2.0 * math.pi - angle_diff)
+				
+				angular_inliers[i] = angle_diff < angle_threshold
+			
+			# Combined inliers (spatial AND angular)
+			combined_inliers = spatial_inliers & angular_inliers
+			inlier_count = np.sum(combined_inliers)
+			
+			if inlier_count > best_inliers:
+				best_inliers = inlier_count
+				best_transform = (R, t, rotation_angle)
+		
+		except (np.linalg.LinAlgError, ValueError):
+			continue
+	
+	if best_transform is None or best_inliers < 3:
+		# Fallback: simple nearest neighbor without transformation
+		tree = KDTree(cand_points)
+		distances, _ = tree.query(probe_points, k=1)
+		matches = np.sum(distances < distance_threshold)
+		score = float(matches) / float(max(n_probe, n_candidate))
+		return score * 0.5  # Penalize because no good alignment found
+	
+	# Step 2: Compute final score based on inliers
+	# Normalize by the larger set to penalize size mismatch
+	max_minutiae = max(n_probe, n_candidate)
+	geometric_score = float(best_inliers) / float(max_minutiae)
+	
+	# Bonus for high inlier ratio in both sets
+	probe_ratio = float(best_inliers) / float(n_probe)
+	candidate_ratio = float(best_inliers) / float(n_candidate)
+	
+	# Weighted combination
+	final_score = 0.6 * geometric_score + 0.2 * probe_ratio + 0.2 * candidate_ratio
+	
+	return float(np.clip(final_score, 0.0, 1.0))
+
+
+# ---------------------------------------------------------------------------
 # Matching engine
 
 
@@ -1861,17 +2227,138 @@ class FingerprintMatcher:
 				raise ValueError(
 					"Template bit-length mismatch. Rebuild the cache with the current projection key."
 				)
+	
+	def adaptive_threshold(self, probe_quality: float, candidate_quality: float) -> float:
+		"""Compute adaptive matching threshold based on probe and candidate quality.
+		
+		TUNED: Less aggressive adjustment than before.
+		
+		Args:
+			probe_quality: Quality score of probe template [0, 1]
+			candidate_quality: Quality score of candidate template [0, 1]
+		
+		Returns:
+			Adjusted matching threshold
+		"""
+		# Both high quality: use standard threshold (0.78)
+		if probe_quality > 0.7 and candidate_quality > 0.7:
+			return MATCH_MIN_SCORE
+		
+		# Both medium quality: relax slightly (was -0.05, now -0.03)
+		if probe_quality >= 0.5 and candidate_quality >= 0.5:
+			adjusted = MATCH_MIN_SCORE - 0.03  # 0.75
+			return adjusted
+		
+		# At least one low quality: relax more (was -0.08, now -0.05)
+		adjusted = MATCH_MIN_SCORE - 0.05  # 0.73
+		return adjusted
 
-	def identify(self, probe: FingerprintTemplate, top_k: int = 5) -> List[Tuple[str, float]]:
-		scores: List[Tuple[str, float]] = []
+	def identify(self, probe: FingerprintTemplate, top_k: int = 5, use_geometric_reranking: bool = True, min_probe_quality: float = 0.35) -> List[Tuple[str, float]]:
+		"""Two-stage identification: hash-based matching + geometric verification.
+		
+		Args:
+			probe: Probe fingerprint template
+			top_k: Number of top matches to return
+			use_geometric_reranking: If True, re-rank top candidates using geometric minutiae matching
+			min_probe_quality: Minimum probe quality to accept (default 0.35). Lower quality probes
+			                   may produce unreliable results and should trigger recapture.
+		
+		Returns:
+			List of (identifier, score) tuples sorted by reranked order
+			Note: When geometric reranking is applied, top-N scores are combined (60% hash + 40% geometric)
+			      Remaining candidates use normalized scores (60% of hash score)
+		
+		Raises:
+			ValueError: If probe quality is below min_probe_quality threshold
+		"""
+		# Quality check: reject low-quality probes
+		if probe.quality < min_probe_quality:
+			raise ValueError(
+				f"Probe quality {probe.quality:.3f} is below minimum threshold {min_probe_quality:.3f}. "
+				f"Please recapture the fingerprint with better quality."
+			)
+		
+		# Stage 1: Hash-based matching (fast, all candidates)
+		hash_scores: List[Tuple[str, float, FingerprintTemplate]] = []
 		for candidate in self.templates:
 			if candidate.image_path == probe.image_path:
 				continue
-			similarity = self.hasher.similarity(probe.protected, candidate.protected)
-			scores.append((candidate.image_path.name, similarity))
-
-		scores.sort(key=lambda item: item[1], reverse=True)
-		return scores[:top_k]
+			hash_similarity = self.hasher.similarity(probe.protected, candidate.protected)
+			hash_scores.append((candidate.image_path.name, hash_similarity, candidate))
+		
+		hash_scores.sort(key=lambda item: item[1], reverse=True)
+		
+		# If geometric reranking disabled or too few candidates, return hash scores
+		if not use_geometric_reranking or len(hash_scores) < 2:
+			return [(name, score) for name, score, _ in hash_scores[:top_k]]
+		
+		# Stage 2: Geometric verification for top candidates (slow, but accurate)
+		# Start with top-3, but expand to include tied candidates
+		top_candidates = hash_scores[:min(3, len(hash_scores))]
+		
+		# Detect ties: if candidates beyond position 3 have very similar scores, include them
+		if len(hash_scores) > 3:
+			third_score = hash_scores[2][1]
+			tie_threshold = 0.0005  # Very tight threshold for detecting ties
+			
+			# Check positions 4-6 for ties with position 3
+			for i in range(3, min(len(hash_scores), 6)):
+				score_diff = abs(hash_scores[i][1] - third_score)
+				if score_diff < tie_threshold:
+					top_candidates.append(hash_scores[i])
+					print(f"[geometric] Including tied candidate at position {i+1}: {hash_scores[i][0]} (diff={score_diff:.6f})")
+				else:
+					break  # Stop at first non-tied candidate
+		
+		if len(top_candidates) >= 2:
+			score_diff = top_candidates[0][1] - top_candidates[1][1]
+			
+			# Only apply geometric reranking if scores are ambiguous
+			if score_diff < 0.02:
+				print(f"[geometric] Hash scores close (diff={score_diff:.4f}), applying geometric verification to top-{len(top_candidates)}...")
+				
+				# Compute geometric scores for reranking
+				reranking_data: List[Tuple[str, float, float, float]] = []
+				for name, hash_score, candidate in top_candidates:
+					# Compute geometric similarity
+					geometric_score = compute_geometric_minutiae_score(
+						probe.minutiae,
+						candidate.minutiae,
+						distance_threshold=MATCH_DISTANCE_THRESHOLD,
+						angle_threshold=MATCH_ANGLE_THRESHOLD_RAD,
+					)
+					
+					# Combined score: 60% hash + 40% geometric
+					combined_score = 0.6 * hash_score + 0.4 * geometric_score
+					
+					reranking_data.append((name, hash_score, geometric_score, combined_score))
+					print(f"[geometric]   {name}: hash={hash_score:.4f}, geom={geometric_score:.4f}, combined={combined_score:.4f}")
+				
+				# Re-rank by combined score
+				reranking_data.sort(key=lambda item: item[3], reverse=True)
+				
+				# Build final result: reranked top-N with COMBINED scores + remaining with normalized scores
+				final_scores: List[Tuple[str, float]] = []
+				reranked_names = set()
+				
+				# Add reranked candidates with COMBINED scores
+				for name, hash_score, geom_score, combined in reranking_data:
+					final_scores.append((name, combined))
+					reranked_names.add(name)
+					print(f"[geometric] Reranked: {name} (combined={combined:.4f})")
+				
+				# Add remaining candidates with normalized scores (hash only = 60% hash + 40% * 0)
+				# This keeps scores in same scale as reranked candidates
+				for name, hash_score, _ in hash_scores:
+					if name not in reranked_names:
+						# Normalize to same scale: 0.6 * hash_score (geometric component = 0)
+						normalized_score = 0.6 * hash_score
+						final_scores.append((name, normalized_score))
+				
+				return final_scores[:top_k]
+		
+		# No reranking needed (scores not close), return hash scores
+		return [(name, score) for name, score, _ in hash_scores[:top_k]]
 
 	def verify(self, probe: FingerprintTemplate, claimed_id: str) -> Tuple[bool, float]:
 		candidates = [t for t in self.templates if t.identifier == claimed_id]
@@ -1882,6 +2369,8 @@ class FingerprintMatcher:
 			similarity = self.hasher.similarity(probe.protected, candidate.protected)
 			best_score = max(best_score, similarity)
 		return best_score >= MATCH_MIN_SCORE, best_score
+		
+		return best_score >= threshold, best_score
 
 
 # ---------------------------------------------------------------------------
@@ -2111,7 +2600,12 @@ def main() -> None:
 	matcher = FingerprintMatcher(gallery_templates, hasher=hasher)
 
 	if args.mode == "identify":
-		results = matcher.identify(probe_template, top_k=args.top)
+		try:
+			results = matcher.identify(probe_template, top_k=args.top, min_probe_quality=args.quality_threshold)
+		except ValueError as e:
+			print(f"[error] {e}")
+			return
+		
 		if not results:
 			print("No matches produced a valid score.")
 			return
