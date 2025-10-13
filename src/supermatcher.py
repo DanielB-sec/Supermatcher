@@ -1,4 +1,4 @@
-"""Hybrid fingerprint identification/authentication pipeline.
+"""Hybrid fingerprint identification/authentication pipeline
 
 This module implements a multi-stage algorithm tailored for challenging datasets.
 
@@ -16,21 +16,19 @@ authentication (one-to-one) against a fingerprint gallery stored inside the
 ``fingerprints`` folder located next to this file.
 
 ===== VERSION HISTORY =====
-  - Added multithreading support for template building (ThreadPoolExecutor)
-  - DEFAULT preprocessing updated to BEST configuration from comprehensive testing:
-    * CLAHE: Enabled (contrast enhancement)
-    * Denoising: Enabled (bilateral filter)
-    * Adaptive Sharpening: Enabled with strength 0.2
-    * Achieves 74.7% accuracy on FVC2004 DB1 (80 probes)
-  - Two-stage geometric matching with RANSAC
-  - Consensus weighting in feature vectors
-  - Tie detection with threshold 0.0020
-  - CLI argument: --threads (default 4 workers)
+
+(2025-10-13) - CONSERVATIVE GEOMETRIC OPTIMIZATION:
+  - CONSERVATIVE APPROACH:
+    * Tie threshold: 0.0020 → 0.0050 (2.5× increase, moderate vs v0.4's 5×)
+    * Hash/Geometric weights: KEPT at 0.6/0.4 (hash is more reliable)
+    * RANSAC parameters: KEPT at baseline (18px spatial, 25° angular)
+    * Min inliers: KEPT at 4 (more rigorous than v0.4's 3)
+  - EXPECTED IMPACT: 72-75% accuracy (small improvement, preserving hash dominance)
 
 KNOWN ISSUES:
-  - Geometric matching not contributing significantly (investigation needed)
-  - Users 110↔109 frequently confused (structurally similar)
+  - Users 110↔109 frequently confused (structurally similar fingerprints)
   - FAR high at 26.6% with quality_threshold=0.3 (recommend 0.4)
+  - Geometric matching contribution limited (conservative by design)
 """
 
 from __future__ import annotations
@@ -388,7 +386,26 @@ def normalise_image(image: np.ndarray,
 					mean0: float = NORMALISATION_MEAN,
 					var0: float = NORMALISATION_VAR,
 					dual_block: bool = False) -> np.ndarray:
-	"""Normalise intensity using local statistics - REVERTED to original single-block."""
+	"""Normalize image intensity using local block statistics.
+	
+	Applies local normalization to compensate for uneven illumination and contrast.
+	Each pixel is normalized based on the mean and variance of its local neighborhood,
+	resulting in consistent ridge clarity across the entire fingerprint.
+	
+	Args:
+		image: Input grayscale image (any numeric type, will be converted to float32)
+		block_size: Size of local neighborhood block for statistics computation (default 16)
+		mean0: Target mean intensity value (default 100.0)
+		var0: Target variance value (default 100.0)
+		dual_block: Legacy parameter (deprecated, no longer used)
+	
+	Returns:
+		Normalized image (float32, 0-255 range)
+	
+	Note:
+		Normalization formula: normalized = mean0 + (image - local_mean) * sqrt(var0 / local_var)
+		This ensures consistent contrast across the entire fingerprint region.
+	"""
 	if image.dtype != np.float32:
 		image = image.astype(np.float32)
 
@@ -405,7 +422,23 @@ def normalise_image(image: np.ndarray,
 def block_variance_segmentation(image: np.ndarray,
 								block_size: int = SEGMENT_BLOCK,
 								threshold: float = SEGMENT_THRESHOLD) -> np.ndarray:
-	"""Segment fingerprint foreground using block variance criterion."""
+	"""Segment fingerprint foreground from background using block variance.
+	
+	Divides the image into blocks and computes variance for each block.
+	High-variance blocks indicate ridge structures (foreground), while
+	low-variance blocks indicate background or noise.
+	
+	Args:
+		image: Input grayscale image (float32, 0-255)
+		block_size: Size of square blocks for variance computation (default 16)
+		threshold: Variance threshold to distinguish foreground from background (default 70.0)
+	
+	Returns:
+		Boolean mask: True for foreground (fingerprint), False for background
+	
+	Note:
+		Applies morphological closing and opening to remove small holes and noise.
+	"""
 	h, w = image.shape
 	mask = np.zeros_like(image, dtype=np.uint8)
 
@@ -425,8 +458,22 @@ def block_variance_segmentation(image: np.ndarray,
 
 
 def gaussian_derivatives(image: np.ndarray, sigma: float) -> Tuple[np.ndarray, np.ndarray]:
-	"""Compute smoothed derivatives using Gaussian kernels (float64 for stability)."""
-	ksize = int(6 * sigma + 1) | 1
+	"""Compute smoothed image derivatives using Gaussian convolution.
+	
+	Applies Gaussian blur followed by Sobel operators to compute stable gradients.
+	Uses float64 precision to maintain numerical stability during diffusion iterations.
+	
+	Args:
+		image: Input grayscale image (any numeric type)
+		sigma: Standard deviation of Gaussian smoothing kernel
+	
+	Returns:
+		Tuple of (gx, gy) - gradient in x and y directions (float64)
+	
+	Note:
+		Kernel size is automatically determined as 6*sigma+1 (odd number).
+	"""
+	ksize = int(6 * sigma + 1) | 1  # Ensure odd kernel size
 	blurred = cv2.GaussianBlur(image, (ksize, ksize), sigma)
 	gx = cv2.Sobel(blurred, cv2.CV_64F, 1, 0, ksize=3)
 	gy = cv2.Sobel(blurred, cv2.CV_64F, 0, 1, ksize=3)
@@ -442,7 +489,38 @@ def coherence_diffusion(image: np.ndarray,
 						alpha: float = CED_ALPHA,
 						beta: float = CED_BETA,
 						adaptive_iterations: bool = False) -> np.ndarray:
-	"""Apply coherence-enhancing diffusion - REVERTED to original (no adaptation)."""
+	"""Apply coherence-enhancing diffusion (CED) for ridge enhancement.
+	
+	Implements anisotropic diffusion based on the local structure tensor, which
+	enhances ridge structures while preserving edges. Diffusion is stronger along
+	ridge directions and weaker across ridges, effectively connecting broken ridges
+	and reducing noise without blurring ridge details.
+	
+	The algorithm:
+	1. Computes structure tensor from image gradients
+	2. Calculates eigenvalues (λ1, λ2) to determine local coherence
+	3. Constructs diffusion tensor with anisotropic diffusivity
+	4. Applies diffusion equation iteratively: I(t+1) = I(t) + dt * div(D·∇I)
+	
+	Args:
+		image: Input grayscale image (float32, 0-255)
+		mask: Boolean mask indicating valid foreground pixels
+		iterations: Number of diffusion iterations (default 12)
+		dt: Time step size for numerical integration (default 0.15)
+		grad_sigma: Sigma for Gaussian smoothing of gradients (default 1.0)
+		tensor_sigma: Sigma for smoothing structure tensor components (default 2.0)
+		alpha: Minimum diffusivity (perpendicular to ridges) (default 0.01)
+		beta: Maximum diffusivity (parallel to ridges) (default 1.25)
+		adaptive_iterations: Legacy parameter (deprecated, no longer used)
+	
+	Returns:
+		Enhanced image (float32, 0-255) with connected ridges and reduced noise
+	
+	Note:
+		Uses float64 precision internally for numerical stability.
+		Coherence measure: exp(-(λ1-λ2)²/(λ1·λ2)) ∈ [0,1]
+		High coherence → ridge-like structure → strong anisotropy
+	"""
 	I = image.astype(np.float64, copy=True)
 	valid = mask.astype(bool)
 	
@@ -496,7 +574,26 @@ def coherence_diffusion(image: np.ndarray,
 def estimate_orientation_and_frequency(image: np.ndarray,
 									   mask: np.ndarray,
 									   block_size: int = ORIENTATION_BLOCK) -> Tuple[np.ndarray, np.ndarray]:
-	"""Estimate ridge orientation (radians) and spatial frequency (cycles/pixel)."""
+	"""Estimate ridge orientation and spatial frequency for each block.
+	
+	Divides the fingerprint into blocks and computes:
+	1. Ridge orientation (direction perpendicular to gradient) using gradient coherence
+	2. Ridge spatial frequency (ridges per pixel) using x-signature method
+	
+	Args:
+		image: Enhanced fingerprint image (float32, 0-255)
+		mask: Boolean mask indicating foreground regions
+		block_size: Size of analysis blocks (default 16 pixels)
+	
+	Returns:
+		Tuple of (orientation, frequency) arrays:
+		- orientation: Ridge angle in radians, shape (blocks_y, blocks_x)
+		- frequency: Spatial frequency in cycles/pixel, shape (blocks_y, blocks_x)
+	
+	Note:
+		Orientation is computed as: θ = 0.5 * atan2(2·Σ(gx·gy), Σ(gx²-gy²))
+		Blocks with <60% foreground pixels are set to zero (background).
+	"""
 	h, w = image.shape
 	gx = cv2.Sobel(image, cv2.CV_32F, 1, 0, ksize=3)
 	gy = cv2.Sobel(image, cv2.CV_32F, 0, 1, ksize=3)
@@ -540,7 +637,23 @@ def estimate_orientation_and_frequency(image: np.ndarray,
 
 
 def estimate_ridge_frequency(block: np.ndarray, theta: float) -> float:
-	"""Estimate local ridge frequency from 1D signature orthogonal to orientation."""
+	"""Estimate local ridge frequency from 1D projection orthogonal to orientation.
+	
+	Creates a projection (x-signature) perpendicular to the ridge orientation and
+	analyzes the periodic pattern to determine the average ridge spacing (frequency).
+	
+	Args:
+		block: Image block to analyze (float32, typically 16×16 pixels)
+		theta: Ridge orientation in radians (from estimate_orientation_and_frequency)
+	
+	Returns:
+		Ridge frequency in cycles per pixel (typically 0.05-0.25 for fingerprints)
+		Returns 0.0 if frequency cannot be reliably estimated
+	
+	Note:
+		Method: Projects pixels onto line perpendicular to ridge orientation,
+		then detects peaks in the resulting 1D signal. Frequency = 1 / mean_peak_distance
+	"""
 	if not np.isfinite(theta):
 		return 0.0
 	h, w = block.shape
@@ -595,7 +708,28 @@ def create_log_gabor_kernel(size: int,
 							theta0: float,
 							sigma_r: float = LOG_GABOR_SIGMA_R,
 							sigma_theta_deg: float = LOG_GABOR_SIGMA_THETA_DEG) -> np.ndarray:
-	"""Construct a Log-Gabor filter in the frequency domain for given parameters."""
+	"""Construct a Log-Gabor filter kernel in the frequency domain.
+	
+	Log-Gabor filters are superior to standard Gabor filters for fingerprint
+	enhancement because they have no DC component and better frequency selectivity.
+	
+	The filter is defined in frequency domain as:
+	G(f, θ) = exp(-(log(f/f₀))²/(2σᵣ²)) · exp(-(θ-θ₀)²/(2σθ²))
+	
+	Args:
+		size: Kernel size (typically matches block_size, e.g., 16)
+		f0: Center frequency in cycles/pixel (from estimate_ridge_frequency)
+		theta0: Ridge orientation in radians (from estimate_orientation_and_frequency)
+		sigma_r: Radial bandwidth parameter (default 1.5, controls frequency selectivity)
+		sigma_theta_deg: Angular bandwidth in degrees (default 12, controls orientation selectivity)
+	
+	Returns:
+		Complex-valued frequency-domain filter kernel (size × size)
+	
+	Note:
+		Returns zeros if f0 ≤ 0 (invalid frequency).
+		Filter is applied via element-wise multiplication in FFT domain.
+	"""
 	if f0 <= 0.0:
 		return np.zeros((size, size), dtype=np.complex64)
 
@@ -624,10 +758,33 @@ def apply_log_gabor_enhancement(image: np.ndarray,
 								frequency: np.ndarray,
 								block_size: int = ORIENTATION_BLOCK,
 								scales: Sequence[float] = LOG_GABOR_SCALES) -> np.ndarray:
-	"""Enhance ridges using a bank of Log-Gabor filters per block."""
+	"""Enhance fingerprint ridges using a bank of Log-Gabor filters.
+	
+	Applies multi-scale Log-Gabor filtering adapted to local ridge orientation
+	and frequency. Each block is filtered at multiple scales to capture ridges
+	of varying widths, then blended using Hanning windows for smooth transitions.
+	
+	Args:
+		image: Diffusion-enhanced fingerprint image (float32, 0-255)
+		mask: Boolean foreground mask
+		orientation: Ridge orientation map (radians), shape (blocks_y, blocks_x)
+		frequency: Ridge frequency map (cycles/pixel), shape (blocks_y, blocks_x)
+		block_size: Processing block size (default 16, should match orientation estimation)
+		scales: Frequency scale factors for multi-scale filtering (default [0.85, 1.0, 1.2])
+	
+	Returns:
+		Enhanced fingerprint image (float32, 0-255) with prominent ridges
+	
+	Note:
+		Uses overlapping blocks with Hanning windows to avoid blocking artifacts.
+		Blocks with <50% foreground are skipped.
+		Multiple scales capture ridges with varying clarity/width.
+	"""
 	h, w = image.shape
 	enhanced = np.zeros_like(image)
 	weights = np.zeros_like(image)
+	
+	# Hanning window for smooth block blending
 	window = np.outer(np.hanning(block_size), np.hanning(block_size)).astype(np.float32)
 	window /= window.max() + 1e-6
 
@@ -665,7 +822,25 @@ def apply_log_gabor_enhancement(image: np.ndarray,
 
 
 def binarise_and_thin(image: np.ndarray, mask: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-	"""Binarise enhanced image and compute skeleton using Zhang-Suen thinning."""
+	"""Binarize enhanced fingerprint image and compute skeleton.
+	
+	Converts the enhanced grayscale image into a binary image (ridge/valley)
+	using Otsu's thresholding, then applies Zhang-Suen thinning algorithm to
+	obtain a 1-pixel wide ridge skeleton suitable for minutiae extraction.
+	
+	Args:
+		image: Enhanced fingerprint image (float32, 0-255)
+		mask: Boolean foreground mask (background pixels are set to zero)
+	
+	Returns:
+		Tuple of (binary, skeleton):
+		- binary: Binary image with ridges=1, valleys=0 (uint8)
+		- skeleton: Thinned binary image with 1-pixel wide ridges (uint8)
+	
+	Note:
+		Uses Otsu's method (cv2.THRESH_OTSU) for automatic threshold selection.
+		Skeleton is masked to remove spurious structure in background regions.
+	"""
 	clipped = image.copy()
 	clipped[~mask] = 0.0
 	clipped_uint8 = np.clip(clipped, 0, 255).astype(np.uint8)
@@ -678,6 +853,27 @@ def binarise_and_thin(image: np.ndarray, mask: np.ndarray) -> Tuple[np.ndarray, 
 
 
 def zhang_suen_thinning(binary: np.ndarray, max_iter: int = THINNING_MAX_ITER) -> np.ndarray:
+	"""Apply Zhang-Suen thinning algorithm to obtain 1-pixel wide skeleton.
+	
+	Iteratively removes pixels from ridge boundaries while preserving connectivity
+	and endpoints. The algorithm works in two sub-iterations per cycle, checking
+	different neighborhood conditions to ensure the skeleton remains connected.
+	
+	Args:
+		binary: Binary ridge image (uint8, 0 or 1)
+		max_iter: Maximum number of iterations (default 40)
+	
+	Returns:
+		Thinned skeleton (uint8, 0 or 1) with 1-pixel wide ridges
+	
+	Note:
+		Conditions for pixel removal (both must be met):
+		1. Exactly one 0-to-1 transition in 8-neighborhood (connectivity)
+		2. Between 2 and 6 non-zero neighbors (avoid removing endpoints/isolated points)
+		3. Specific patterns checked to prevent erosion of critical structure
+		
+		Converges when no more pixels can be removed without breaking connectivity.
+	"""
 	img = binary.copy().astype(np.uint8)
 	changed = True
 	iteration = 0
@@ -723,7 +919,28 @@ def extract_minutiae(skeleton: np.ndarray,
 					 mask: np.ndarray,
 					 orientation: np.ndarray,
 					 block_size: int = ORIENTATION_BLOCK) -> List[Minutia]:
-	"""Extract minutiae using the Crossing Number method."""
+	"""Extract minutiae points using the Crossing Number (CN) method.
+	
+	Scans the skeleton image and identifies minutiae (ridge endings and bifurcations)
+	by analyzing the 8-neighborhood of each skeleton pixel. The Crossing Number
+	determines the minutia type:
+	- CN = 1: Ridge ending (termination point)
+	- CN = 3: Ridge bifurcation (splitting point)
+	
+	Args:
+		skeleton: Thinned binary ridge skeleton (uint8, 0 or 1)
+		mask: Boolean foreground mask to exclude background regions
+		orientation: Ridge orientation map (radians), shape (blocks_y, blocks_x)
+		block_size: Block size used for orientation estimation (default 16)
+	
+	Returns:
+		List of Minutia objects with (x, y, angle, type, quality)
+	
+	Note:
+		Crossing Number CN = 0.5 * Σ|p(i) - p(i+1)| where p(i) are 8-neighbors.
+		Edge margin (MINUTIA_EDGE_MARGIN=8) is applied to exclude border artifacts.
+		Quality is estimated from local neighborhood variance.
+	"""
 	minutiae: List[Minutia] = []
 	h, w = skeleton.shape
 
@@ -766,16 +983,27 @@ def validate_minutiae(minutiae: List[Minutia],
 					  skeleton: np.ndarray,
 					  mask: np.ndarray,
 					  validate_with_context: bool = True) -> List[Minutia]:
-	"""Remove spurious minutiae based on spatial heuristics.
+	"""Remove spurious minutiae using spatial and structural heuristics.
+	
+	Filters out false minutiae caused by noise, broken ridges, or artifacts.
+	Applies multiple validation criteria:
+	1. Mask-based: Remove minutiae in background regions
+	2. Distance-based: Remove minutiae too close to each other (likely noise)
+	3. Angular consistency: Check if minutia angle aligns with local ridge orientation
+	4. Neighborhood quality: Verify surrounding skeleton structure is consistent
 	
 	Args:
-		minutiae: List of extracted minutiae
-		skeleton: Thinned ridge skeleton
-		mask: Foreground mask
+		minutiae: List of extracted minutiae (from extract_minutiae)
+		skeleton: Thinned ridge skeleton used for context validation
+		mask: Boolean foreground mask
 		validate_with_context: If True, apply neighborhood and angular consistency checks
 	
 	Returns:
-		Filtered minutiae list
+		Filtered list of valid minutiae with improved quality estimates
+	
+	Note:
+		Removes minutiae pairs closer than MINUTIA_DISTANCE_THRESHOLD (default 5 pixels).
+		Angular consistency checks use MINUTIA_ANGLE_THRESHOLD_DEG (default 25 degrees).
 	"""
 	if not minutiae:
 		return []
@@ -867,15 +1095,25 @@ def validate_minutiae(minutiae: List[Minutia],
 def refine_minutiae_geometry(minutiae: List[Minutia],
 							  skeleton: np.ndarray,
 							  binary: np.ndarray) -> List[Minutia]:
-	"""Refine minutiae positions and validate geometry using morphology.
+	"""Refine minutiae positions and validate geometry using morphological analysis.
+	
+	Performs post-processing to improve minutiae quality:
+	1. Validates minutia types using dilation/connectivity tests
+	2. Adjusts coordinates to local center of mass within small radius
+	3. Removes false minutiae caused by noise or artifacts
 	
 	Args:
-		minutiae: List of validated minutiae
-		skeleton: Thinned ridge skeleton
-		binary: Binary fingerprint image
+		minutiae: List of validated minutiae (from validate_minutiae)
+		skeleton: Thinned ridge skeleton for connectivity analysis
+		binary: Binary fingerprint image for morphological validation
 	
 	Returns:
-		Refined minutiae with adjusted coordinates and validated types
+		Refined minutiae with adjusted positions and validated types
+	
+	Note:
+		- Endings: Verified using dilation (should have limited connectivity)
+		- Bifurcations: Must have ≥3 connected ridge pixels
+		- Position adjustment limited to 3 pixels (center of mass in 8px radius)
 	"""
 	if not minutiae:
 		return []
@@ -950,7 +1188,28 @@ def detect_pores(image: np.ndarray,
 				 max_sigma: float = PORE_MAX_SIGMA,
 				 steps: int = PORE_SIGMA_STEPS,
 				 threshold: float = PORE_RESPONSE_THRESHOLD) -> List[Pore]:
-	"""Detect pores using a Laplacian-of-Gaussian multi-scale response."""
+	"""Detect sweat pores using multi-scale Laplacian-of-Gaussian (LoG) filter.
+	
+	Level-3 features (pores) are detected as local maxima in the normalized LoG
+	response across multiple scales. Pores appear as small dark circular regions
+	and produce strong negative Laplacian responses.
+	
+	Args:
+		image: Enhanced fingerprint image (float32, 0-255)
+		mask: Boolean foreground mask to limit search region
+		min_sigma: Minimum LoG kernel sigma (default 0.6, ~1.2px diameter)
+		max_sigma: Maximum LoG kernel sigma (default 1.4, ~2.8px diameter)
+		steps: Number of scales to test (default 5)
+		threshold: Minimum normalized LoG response to accept (default 0.025)
+	
+	Returns:
+		List of Pore objects with (x, y, radius, strength)
+	
+	Note:
+		Normalized LoG response: -∇²G(σ) * σ²
+		Requires high-resolution images (≥1000 DPI) for reliable pore detection.
+		Most useful for Level-3 fusion in high-quality fingerprint datasets.
+	"""
 	pores: List[Pore] = []
 	sigmas = np.linspace(min_sigma, max_sigma, steps)
 	for sigma in sigmas:
@@ -966,7 +1225,25 @@ def detect_pores(image: np.ndarray,
 
 
 def compute_delaunay_signatures(minutiae: Sequence[Minutia], image_shape: Tuple[int, int]) -> List[Tuple[float, float, float]]:
-	"""Compute simple Delaunay-based triangle signatures for fusion stage."""
+	"""Compute geometric signatures from Delaunay triangulation of minutiae.
+	
+	Creates a Delaunay triangulation of minutiae points and extracts normalized
+	triangle signatures (sorted side length ratios). These signatures are robust
+	to rotation and scale, useful for geometric matching and fusion.
+	
+	Args:
+		minutiae: Sequence of Minutia objects with (x, y) coordinates
+		image_shape: Image dimensions (height, width) for boundary validation
+	
+	Returns:
+		List of triangle signatures, each as (a/p, b/p, c/p) where a≤b≤c
+		are sorted edge lengths and p is perimeter. Empty if <3 minutiae.
+	
+	Note:
+		Uses OpenCV's Subdiv2D for Delaunay triangulation.
+		Filters out triangles with vertices outside image bounds.
+		Normalization by perimeter provides scale invariance.
+	"""
 	if len(minutiae) < 3:
 		return []
 
@@ -999,6 +1276,25 @@ def compute_delaunay_signatures(minutiae: Sequence[Minutia], image_shape: Tuple[
 
 
 def _derive_seed_from_key(key: str, feature_dim: int, projection_dim: int) -> np.random.Generator:
+	"""Derive deterministic random seed from user key and dimensions.
+	
+	Creates a reproducible random number generator seeded from the combination
+	of user key, feature dimension, and projection dimension. This ensures that
+	the same key always generates the same projection matrix, enabling
+	template revocation and renewal.
+	
+	Args:
+		key: User-specific secret key (string)
+		feature_dim: Dimension of input feature vector
+		projection_dim: Dimension of projected (hashed) output
+	
+	Returns:
+		NumPy random generator with deterministic seed
+	
+	Note:
+		Uses SHA-256 hash of "key|feature_dim|projection_dim" to generate seed.
+		First 8 bytes of hash are converted to integer seed for RNG.
+	"""
 	key_material = f"{key}|{feature_dim}|{projection_dim}".encode("utf-8")
 	digest = hashlib.sha256(key_material).digest()
 	seed = int.from_bytes(digest[:8], "big", signed=False)
@@ -1006,6 +1302,33 @@ def _derive_seed_from_key(key: str, feature_dim: int, projection_dim: int) -> np
 
 
 class CancelableHasher:
+	"""Cancelable biometric template encoder using random projection and binarization.
+	
+	Implements a one-way transformation of feature vectors into protected binary
+	templates. The transformation is:
+	1. Random projection: y = Px + b (where P is a key-derived random matrix)
+	2. Binarization: hash = sign(y) (each dimension becomes 1 bit)
+	
+	Key properties:
+	- Non-invertible: Cannot recover original features from hash
+	- Revocable: Changing the key generates a completely different template
+	- Renewable: User can have multiple independent templates with different keys
+	- Similarity-preserving: Hamming distance correlates with feature distance
+	
+	Attributes:
+		feature_dim: Input feature vector dimension (e.g., 736 for this system)
+		projection_dim: Output hash dimension before packing (e.g., 512 bits)
+		hash_count: Number of independent hash functions (default 2 for robustness)
+		bit_length: Total bits in final template (projection_dim × hash_count)
+	
+	Methods:
+		encode(features): Convert feature vector to packed binary template
+		similarity(packed_a, packed_b): Compute similarity (0-1) between templates
+	
+	Note:
+		Uses Gaussian random projection with key-derived seed for reproducibility.
+		Similarity is computed as 1 - (hamming_distance / total_bits).
+	"""
 	def __init__(
 		self,
 		feature_dim: int,
@@ -1013,6 +1336,17 @@ class CancelableHasher:
 		key: str,
 		hash_count: int = 1,
 	) -> None:
+		"""Initialize cancelable hasher with projection parameters.
+		
+		Args:
+			feature_dim: Dimension of input feature vectors
+			projection_dim: Dimension of each hash (number of bits per hash)
+			key: User-specific secret key for deterministic projection generation
+			hash_count: Number of independent hashes to concatenate (default 1)
+		
+		Raises:
+			ValueError: If projection_dim or hash_count are not positive
+		"""
 		if projection_dim <= 0:
 			raise ValueError("projection_dim must be positive.")
 		if hash_count <= 0:
@@ -1022,24 +1356,49 @@ class CancelableHasher:
 		self.hash_count = hash_count
 		self._projections: List[np.ndarray] = []
 		self._biases: List[np.ndarray] = []
+		
+		# Generate independent random projections for each hash
 		for index in range(hash_count):
 			seed_key = f"{key}:{index}"
 			rng = _derive_seed_from_key(seed_key, feature_dim, projection_dim)
+			
+			# Random projection matrix: Gaussian with variance 1/projection_dim
 			projection = rng.normal(
 				loc=0.0,
 				scale=1.0 / math.sqrt(projection_dim),
 				size=(projection_dim, feature_dim),
 			).astype(np.float32)
+			
+			# Small random bias to avoid zero projections
 			bias = rng.normal(loc=0.0, scale=0.05, size=(projection_dim,)).astype(np.float32)
+			
 			self._projections.append(projection)
 			self._biases.append(bias)
-		self._pack_length = (self.bit_length + 7) // 8
+		
+		self._pack_length = (self.bit_length + 7) // 8  # Bytes needed to store bits
 
 	@property
 	def bit_length(self) -> int:
+		"""Total number of bits in the protected template."""
 		return self.projection_dim * self.hash_count
 
 	def encode(self, features: np.ndarray) -> np.ndarray:
+		"""Encode feature vector into packed binary template.
+		
+		Applies random projection and binarization: hash = sign(Px + b)
+		
+		Args:
+			features: Input feature vector (1D array, length must match feature_dim)
+		
+		Returns:
+			Packed binary template (uint8 array, packed bits)
+		
+		Raises:
+			ValueError: If features has wrong dimension or shape
+		
+		Note:
+			Output size is (projection_dim * hash_count + 7) // 8 bytes.
+		"""
 		vector = np.asarray(features, dtype=np.float32)
 		if vector.ndim != 1:
 			raise ValueError("Feature vector must be one dimensional.")
@@ -1047,35 +1406,92 @@ class CancelableHasher:
 			raise ValueError(
 				f"Expected feature vector of length {self.feature_dim}, received {vector.shape[0]}"
 			)
+		
 		bits_accum = []
 		for projection, bias in zip(self._projections, self._biases):
+			# Project and binarize: bit_i = 1 if (P_i · x + b_i) >= 0, else 0
 			projected = (projection @ vector) + bias
 			bits_accum.append((projected >= 0.0).astype(np.uint8))
+		
 		concatenated = np.concatenate(bits_accum, axis=0)
 		return np.packbits(concatenated)
 
 	def similarity(self, packed_a: np.ndarray, packed_b: np.ndarray) -> float:
+		"""Compute similarity between two packed binary templates.
+		
+		Similarity = 1 - (Hamming distance / total bits)
+		
+		Args:
+			packed_a: First packed template (from encode())
+			packed_b: Second packed template (from encode())
+		
+		Returns:
+			Similarity score in [0, 1], where 1 = identical, 0 = completely different
+		
+		Raises:
+			ValueError: If templates have incompatible sizes
+		
+		Note:
+			Uses XOR to compute bit differences, then averages across all hashes.
+		"""
 		a = np.asarray(packed_a, dtype=np.uint8)
 		b = np.asarray(packed_b, dtype=np.uint8)
 		if a.shape != b.shape:
 			raise ValueError("Packed templates must have identical shape to compare.")
 		if a.size != self._pack_length:
 			raise ValueError("Packed template size does not match projection parameters.")
+		
+		# XOR to find differing bits
 		xor = np.bitwise_xor(a, b)
 		mismatches = np.unpackbits(xor)[: self.bit_length]
+		
 		if mismatches.size != self.bit_length:
 			raise ValueError("Packed template size is inconsistent with projection parameters.")
+		
+		# Compute similarity per hash, then average
 		reshaped = mismatches.reshape(self.hash_count, self.projection_dim)
 		per_hash_similarity = 1.0 - (reshaped.sum(axis=1) / float(self.projection_dim))
 		return float(per_hash_similarity.mean())
 
 
 def _angle_difference(theta1: float, theta2: float) -> float:
+	"""Compute absolute angular difference between two angles in radians.
+	
+	Handles wraparound correctly: difference between 0 and 2π is 0, not 2π.
+	
+	Args:
+		theta1: First angle in radians
+		theta2: Second angle in radians
+	
+	Returns:
+		Absolute angular difference in [0, π] radians
+	
+	Note:
+		Formula: |((θ1 - θ2 + π) mod 2π) - π|
+		Ensures result is always in range [0, π] regardless of input angles.
+	"""
 	diff = (theta1 - theta2 + math.pi) % (2.0 * math.pi) - math.pi
 	return abs(diff)
 
 
 def fuse_feature_vectors(templates: Sequence[FingerprintTemplate]) -> Optional[np.ndarray]:
+	"""Fuse feature vectors from multiple templates using quality-weighted averaging.
+	
+	Combines raw feature vectors from multiple fingerprint samples (e.g., from
+	different fingers or multiple captures) into a single consensus vector.
+	Higher quality templates contribute more to the final fused vector.
+	
+	Args:
+		templates: Sequence of FingerprintTemplate objects with raw_features
+	
+	Returns:
+		Fused feature vector (normalized to unit length), or None if no valid vectors
+	
+	Note:
+		Weighting: w_i = quality_i / Σ(quality_j)
+		Fusion: fused = Σ(w_i · features_i)
+		Final vector is L2-normalized: fused / ||fused||
+	"""
 	vectors: List[np.ndarray] = []
 	weights: List[float] = []
 	for template in templates:
@@ -2548,7 +2964,7 @@ class FingerprintMatcher:
 		# Detect ties: if candidates beyond position 3 have very similar scores, include them
 		if len(hash_scores) > 3:
 			third_score = hash_scores[2][1]
-			tie_threshold = 0.0020  # Threshold for detecting near-ties in hash scores
+			tie_threshold = 0.0050  # OPTIMIZED v0.5: Moderately increased from 0.0020 (2.5× more sensitive)
 			
 			# Check positions 4-6 for ties with position 3
 			for i in range(3, min(len(hash_scores), 6)):
