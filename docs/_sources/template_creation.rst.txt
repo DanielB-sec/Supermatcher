@@ -1,7 +1,0 @@
-template\_creation module
-=========================
-
-.. automodule:: template_creation
-   :members:
-   :show-inheritance:
-   :undoc-members:

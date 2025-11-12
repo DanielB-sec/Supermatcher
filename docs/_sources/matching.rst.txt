@@ -1,7 +1,0 @@
-matching module
-===============
-
-.. automodule:: matching
-   :members:
-   :show-inheritance:
-   :undoc-members:

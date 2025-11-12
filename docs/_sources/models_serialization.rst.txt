@@ -1,7 +1,0 @@
-models\_serialization module
-============================
-
-.. automodule:: models_serialization
-   :members:
-   :show-inheritance:
-   :undoc-members:
