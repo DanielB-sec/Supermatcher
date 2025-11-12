@@ -1,0 +1,1836 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>webserver package &mdash; Supermatcher 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=8d563738"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Supermatcher
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">webserver package</a><ul>
+<li><a class="reference internal" href="#subpackages">Subpackages</a></li>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-webserver.auth">webserver.auth module</a><ul>
+<li><a class="reference internal" href="#webserver.auth.check_rate_limit"><code class="docutils literal notranslate"><span class="pre">check_rate_limit()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.auth.cleanup_rate_limit_storage"><code class="docutils literal notranslate"><span class="pre">cleanup_rate_limit_storage()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.auth.create_token"><code class="docutils literal notranslate"><span class="pre">create_token()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.auth.get_client_ip"><code class="docutils literal notranslate"><span class="pre">get_client_ip()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.auth.get_current_user"><code class="docutils literal notranslate"><span class="pre">get_current_user()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.auth.hash_password"><code class="docutils literal notranslate"><span class="pre">hash_password()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.auth.is_ip_locked"><code class="docutils literal notranslate"><span class="pre">is_ip_locked()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.auth.rate_limit"><code class="docutils literal notranslate"><span class="pre">rate_limit()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.auth.record_login_attempt"><code class="docutils literal notranslate"><span class="pre">record_login_attempt()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.auth.refresh_token"><code class="docutils literal notranslate"><span class="pre">refresh_token()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.auth.require_auth"><code class="docutils literal notranslate"><span class="pre">require_auth()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.auth.verify_password"><code class="docutils literal notranslate"><span class="pre">verify_password()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.auth.verify_token"><code class="docutils literal notranslate"><span class="pre">verify_token()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-webserver.biometric_worker">webserver.biometric_worker module</a><ul>
+<li><a class="reference internal" href="#webserver.biometric_worker.worker_enroll"><code class="docutils literal notranslate"><span class="pre">worker_enroll()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.biometric_worker.worker_enroll_single_user"><code class="docutils literal notranslate"><span class="pre">worker_enroll_single_user()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.biometric_worker.worker_identify"><code class="docutils literal notranslate"><span class="pre">worker_identify()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.biometric_worker.worker_load_folder"><code class="docutils literal notranslate"><span class="pre">worker_load_folder()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.biometric_worker.worker_match_probe_against_gallery_chunk"><code class="docutils literal notranslate"><span class="pre">worker_match_probe_against_gallery_chunk()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.biometric_worker.worker_verify"><code class="docutils literal notranslate"><span class="pre">worker_verify()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-webserver.config">webserver.config module</a><ul>
+<li><a class="reference internal" href="#webserver.config.ensure_directories"><code class="docutils literal notranslate"><span class="pre">ensure_directories()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.config.get_db_key"><code class="docutils literal notranslate"><span class="pre">get_db_key()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.config.get_jwt_secret"><code class="docutils literal notranslate"><span class="pre">get_jwt_secret()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-webserver.database">webserver.database module</a><ul>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase</span></code></a><ul>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.add_fingerprint"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.add_fingerprint()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.authenticate"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.authenticate()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.cleanup_old_jobs"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.cleanup_old_jobs()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.close"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.close()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.create_auth_user"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.create_auth_user()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.create_job"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.create_job()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.delete_all_fingerprints"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.delete_all_fingerprints()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.delete_fingerprint"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.delete_fingerprint()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.get_all_templates"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_all_templates()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.get_audit_log"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_audit_log()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.get_fingerprint"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_fingerprint()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.get_job"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_job()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.get_stats"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_stats()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.list_fingerprints"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.list_fingerprints()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.reset_admin_password"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.reset_admin_password()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.update_fingerprint"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.update_fingerprint()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.database.BiometricDatabase.update_job"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.update_job()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-webserver.jobs">webserver.jobs module</a><ul>
+<li><a class="reference internal" href="#webserver.jobs.JobManager"><code class="docutils literal notranslate"><span class="pre">JobManager</span></code></a><ul>
+<li><a class="reference internal" href="#webserver.jobs.JobManager.cancel_job"><code class="docutils literal notranslate"><span class="pre">JobManager.cancel_job()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.jobs.JobManager.cleanup_old_jobs"><code class="docutils literal notranslate"><span class="pre">JobManager.cleanup_old_jobs()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.jobs.JobManager.create_load_folder_job"><code class="docutils literal notranslate"><span class="pre">JobManager.create_load_folder_job()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.jobs.JobManager.get_job_status"><code class="docutils literal notranslate"><span class="pre">JobManager.get_job_status()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.jobs.JobManager.get_running_jobs"><code class="docutils literal notranslate"><span class="pre">JobManager.get_running_jobs()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-webserver.logger">webserver.logger module</a><ul>
+<li><a class="reference internal" href="#webserver.logger.cleanup_old_logs"><code class="docutils literal notranslate"><span class="pre">cleanup_old_logs()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.logger.get_logger"><code class="docutils literal notranslate"><span class="pre">get_logger()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.logger.log_access"><code class="docutils literal notranslate"><span class="pre">log_access()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.logger.log_auth"><code class="docutils literal notranslate"><span class="pre">log_auth()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.logger.log_biometric"><code class="docutils literal notranslate"><span class="pre">log_biometric()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.logger.log_error"><code class="docutils literal notranslate"><span class="pre">log_error()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.logger.log_job"><code class="docutils literal notranslate"><span class="pre">log_job()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.logger.log_json"><code class="docutils literal notranslate"><span class="pre">log_json()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.logger.log_shutdown"><code class="docutils literal notranslate"><span class="pre">log_shutdown()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.logger.log_startup"><code class="docutils literal notranslate"><span class="pre">log_startup()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-webserver.server">webserver.server module</a></li>
+<li><a class="reference internal" href="#module-webserver">Module contents</a><ul>
+<li><a class="reference internal" href="#webserver.BiometricDatabase"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase</span></code></a><ul>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.add_fingerprint"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.add_fingerprint()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.authenticate"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.authenticate()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.cleanup_old_jobs"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.cleanup_old_jobs()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.close"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.close()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.create_auth_user"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.create_auth_user()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.create_job"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.create_job()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.delete_all_fingerprints"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.delete_all_fingerprints()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.delete_fingerprint"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.delete_fingerprint()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.get_all_templates"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_all_templates()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.get_audit_log"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_audit_log()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.get_fingerprint"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_fingerprint()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.get_job"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_job()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.get_stats"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_stats()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.list_fingerprints"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.list_fingerprints()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.reset_admin_password"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.reset_admin_password()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.update_fingerprint"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.update_fingerprint()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.BiometricDatabase.update_job"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.update_job()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#webserver.create_token"><code class="docutils literal notranslate"><span class="pre">create_token()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.get_logger"><code class="docutils literal notranslate"><span class="pre">get_logger()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.require_auth"><code class="docutils literal notranslate"><span class="pre">require_auth()</span></code></a></li>
+<li><a class="reference internal" href="#webserver.verify_token"><code class="docutils literal notranslate"><span class="pre">verify_token()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Supermatcher</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">webserver package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/webserver.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="webserver-package">
+<h1>webserver package<a class="headerlink" href="#webserver-package" title="Link to this heading"></a></h1>
+<section id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="webserver.routes.html">webserver.routes package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="webserver.routes.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="webserver.routes.html#module-webserver.routes.admin_routes">webserver.routes.admin_routes module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.admin_routes.cancel_job"><code class="docutils literal notranslate"><span class="pre">cancel_job()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.admin_routes.cleanup_jobs"><code class="docutils literal notranslate"><span class="pre">cleanup_jobs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.admin_routes.get_audit_log"><code class="docutils literal notranslate"><span class="pre">get_audit_log()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.admin_routes.get_job"><code class="docutils literal notranslate"><span class="pre">get_job()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.admin_routes.get_stats"><code class="docutils literal notranslate"><span class="pre">get_stats()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.admin_routes.list_running_jobs"><code class="docutils literal notranslate"><span class="pre">list_running_jobs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.admin_routes.load_folder"><code class="docutils literal notranslate"><span class="pre">load_folder()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.admin_routes.set_job_manager"><code class="docutils literal notranslate"><span class="pre">set_job_manager()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="webserver.routes.html#module-webserver.routes.auth_routes">webserver.routes.auth_routes module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.auth_routes.LoginRequest"><code class="docutils literal notranslate"><span class="pre">LoginRequest</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="webserver.routes.html#webserver.routes.auth_routes.LoginRequest.login"><code class="docutils literal notranslate"><span class="pre">LoginRequest.login</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="webserver.routes.html#webserver.routes.auth_routes.LoginRequest.model_config"><code class="docutils literal notranslate"><span class="pre">LoginRequest.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="webserver.routes.html#webserver.routes.auth_routes.LoginRequest.password"><code class="docutils literal notranslate"><span class="pre">LoginRequest.password</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.auth_routes.LoginResponse"><code class="docutils literal notranslate"><span class="pre">LoginResponse</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="webserver.routes.html#webserver.routes.auth_routes.LoginResponse.expires_in"><code class="docutils literal notranslate"><span class="pre">LoginResponse.expires_in</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="webserver.routes.html#webserver.routes.auth_routes.LoginResponse.login"><code class="docutils literal notranslate"><span class="pre">LoginResponse.login</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="webserver.routes.html#webserver.routes.auth_routes.LoginResponse.model_config"><code class="docutils literal notranslate"><span class="pre">LoginResponse.model_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="webserver.routes.html#webserver.routes.auth_routes.LoginResponse.privilege"><code class="docutils literal notranslate"><span class="pre">LoginResponse.privilege</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="webserver.routes.html#webserver.routes.auth_routes.LoginResponse.token"><code class="docutils literal notranslate"><span class="pre">LoginResponse.token</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.auth_routes.login"><code class="docutils literal notranslate"><span class="pre">login()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.auth_routes.logout"><code class="docutils literal notranslate"><span class="pre">logout()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.auth_routes.refresh_token"><code class="docutils literal notranslate"><span class="pre">refresh_token()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="webserver.routes.html#module-webserver.routes.biometric_routes">webserver.routes.biometric_routes module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.biometric_routes.identify"><code class="docutils literal notranslate"><span class="pre">identify()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.biometric_routes.set_globals"><code class="docutils literal notranslate"><span class="pre">set_globals()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.biometric_routes.verify"><code class="docutils literal notranslate"><span class="pre">verify()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="webserver.routes.html#module-webserver.routes.user_routes">webserver.routes.user_routes module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.user_routes.add_user"><code class="docutils literal notranslate"><span class="pre">add_user()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.user_routes.delete_all_users"><code class="docutils literal notranslate"><span class="pre">delete_all_users()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.user_routes.delete_user"><code class="docutils literal notranslate"><span class="pre">delete_user()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.user_routes.get_user"><code class="docutils literal notranslate"><span class="pre">get_user()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.user_routes.list_users"><code class="docutils literal notranslate"><span class="pre">list_users()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.user_routes.set_globals"><code class="docutils literal notranslate"><span class="pre">set_globals()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.routes.html#webserver.routes.user_routes.update_user"><code class="docutils literal notranslate"><span class="pre">update_user()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="webserver.routes.html#module-webserver.routes">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-webserver.auth">
+<span id="webserver-auth-module"></span><h2>webserver.auth module<a class="headerlink" href="#module-webserver.auth" title="Link to this heading"></a></h2>
+<p>Webserver Authentication and Authorization</p>
+<p>This module provides JWT token management, rate limiting, password hashing, and FastAPI security dependencies for the biometric webserver.
+It supports configurable token expiry, per-operation rate limiting, privilege enforcement, and secure password storage. Utility functions are included for extracting client IPs and cleaning up rate limit storage.</p>
+<dl class="simple">
+<dt>Features:</dt><dd><ul class="simple">
+<li><p>JWT token creation and validation with configurable expiry</p></li>
+<li><p>Rate limiting per operation type (login, verify, identify, etc.)</p></li>
+<li><p>FastAPI dependency decorators for authentication and privilege enforcement</p></li>
+<li><p>IP-based and user-based rate limiting</p></li>
+<li><p>Secure password hashing and verification (bcrypt)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.auth.check_rate_limit">
+<span class="sig-prename descclassname"><span class="pre">webserver.auth.</span></span><span class="sig-name descname"><span class="pre">check_rate_limit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">identifier</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">operation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_requests</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_seconds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/auth.html#check_rate_limit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.auth.check_rate_limit" title="Link to this definition"></a></dt>
+<dd><p>Check if an operation is within rate limits.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>identifier</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Unique identifier (IP address, username, etc.)</p></li>
+<li><p><strong>operation</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Operation type (must be in RATE_LIMITS or custom)</p></li>
+<li><p><strong>max_requests</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>]</span>) – Override max requests (uses RATE_LIMITS if None)</p></li>
+<li><p><strong>window_seconds</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>]</span>) – Override time window (uses RATE_LIMITS if None)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool, retry_after: Optional[int])
+- allowed: True if within limit, False if exceeded
+- retry_after: Seconds until next allowed request (if exceeded)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple of (allowed</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">allowed</span><span class="p">,</span> <span class="n">retry</span> <span class="o">=</span> <span class="n">check_rate_limit</span><span class="p">(</span><span class="s2">&quot;192.168.1.100&quot;</span><span class="p">,</span> <span class="s2">&quot;login&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">if</span> <span class="ow">not</span> <span class="n">allowed</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="mi">429</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Rate limit exceeded. Retry after </span><span class="si">{</span><span class="n">retry</span><span class="si">}</span><span class="s2">s&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.auth.cleanup_rate_limit_storage">
+<span class="sig-prename descclassname"><span class="pre">webserver.auth.</span></span><span class="sig-name descname"><span class="pre">cleanup_rate_limit_storage</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/auth.html#cleanup_rate_limit_storage"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.auth.cleanup_rate_limit_storage" title="Link to this definition"></a></dt>
+<dd><p>Clean up expired rate limit entries (call periodically).</p>
+<p>Removes all entries older than the longest rate limit window.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.auth.create_token">
+<span class="sig-prename descclassname"><span class="pre">webserver.auth.</span></span><span class="sig-name descname"><span class="pre">create_token</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">user_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">privilege</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/auth.html#create_token"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.auth.create_token" title="Link to this definition"></a></dt>
+<dd><p>Create a JWT token for authenticated user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>user_data</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – User information dict (must have ‘login’ and ‘privilege’ keys)</p></li>
+<li><p><strong>privilege</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – Override privilege (optional, uses user_data[‘privilege’] by default)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>JWT token string</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">token</span> <span class="o">=</span> <span class="n">create_token</span><span class="p">({</span><span class="s2">&quot;login&quot;</span><span class="p">:</span> <span class="s2">&quot;admin&quot;</span><span class="p">,</span> <span class="s2">&quot;privilege&quot;</span><span class="p">:</span> <span class="s2">&quot;admin&quot;</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">token</span><span class="p">[:</span><span class="mi">20</span><span class="p">])</span>
+<span class="go">eyJhbGciOiJIUzI1NiIs...</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.auth.get_client_ip">
+<span class="sig-prename descclassname"><span class="pre">webserver.auth.</span></span><span class="sig-name descname"><span class="pre">get_client_ip</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/auth.html#get_client_ip"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.auth.get_client_ip" title="Link to this definition"></a></dt>
+<dd><p>Extract client IP address from request (handles proxies).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>request</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Request</span></code></span>) – FastAPI request object</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Client IP address string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.auth.get_current_user">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">webserver.auth.</span></span><span class="sig-name descname"><span class="pre">get_current_user</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">credentials=Depends(dependency=&lt;fastapi.security.http.HTTPBearer</span> <span class="pre">object&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_cache=True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scope=None)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/auth.html#get_current_user"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.auth.get_current_user" title="Link to this definition"></a></dt>
+<dd><p>FastAPI dependency: Extract and verify JWT token from Authorization header.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>request</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Request</span></code></span>) – FastAPI request object</p></li>
+<li><p><strong>credentials</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">HTTPAuthorizationCredentials</span></code></span>) – HTTP Bearer credentials</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>]</span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Decoded token payload (user data)</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>HTTPException</strong> – If token is missing or invalid (401)</p>
+</dd>
+</dl>
+<dl>
+<dt>Usage:</dt><dd><p>&#64;app.get(“/protected”)
+async def protected_route(user = Depends(get_current_user)):</p>
+<blockquote>
+<div><p>return {“message”: f”Hello {user[‘login’]}”}</p>
+</div></blockquote>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.auth.hash_password">
+<span class="sig-prename descclassname"><span class="pre">webserver.auth.</span></span><span class="sig-name descname"><span class="pre">hash_password</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">password</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/auth.html#hash_password"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.auth.hash_password" title="Link to this definition"></a></dt>
+<dd><p>Hash a password using bcrypt.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>password</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Plain text password</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Bcrypt hash string</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">hashed</span> <span class="o">=</span> <span class="n">hash_password</span><span class="p">(</span><span class="s2">&quot;secret123&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">hashed</span><span class="p">[:</span><span class="mi">7</span><span class="p">])</span>
+<span class="go">$2b$12$</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.auth.is_ip_locked">
+<span class="sig-prename descclassname"><span class="pre">webserver.auth.</span></span><span class="sig-name descname"><span class="pre">is_ip_locked</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ip</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/auth.html#is_ip_locked"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.auth.is_ip_locked" title="Link to this definition"></a></dt>
+<dd><p>Check if an IP is locked out due to failed login attempts.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ip</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Client IP address</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool, retry_after: Optional[int])
+- locked: True if IP is locked out
+- retry_after: Seconds until unlock (if locked)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple of (locked</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.auth.rate_limit">
+<span class="sig-prename descclassname"><span class="pre">webserver.auth.</span></span><span class="sig-name descname"><span class="pre">rate_limit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">operation</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/auth.html#rate_limit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.auth.rate_limit" title="Link to this definition"></a></dt>
+<dd><p>FastAPI dependency factory: Enforce rate limiting for an operation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>operation</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Operation type (must be in RATE_LIMITS or defaults to 10/min)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>FastAPI dependency function</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>HTTPException</strong> – If rate limit exceeded (429)</p>
+</dd>
+</dl>
+<dl>
+<dt>Usage:</dt><dd><p>&#64;app.post(“/api/verify”, dependencies=[Depends(rate_limit(“verify”))])
+async def verify_fingerprint(…):</p>
+<blockquote>
+<div><p>…</p>
+</div></blockquote>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.auth.record_login_attempt">
+<span class="sig-prename descclassname"><span class="pre">webserver.auth.</span></span><span class="sig-name descname"><span class="pre">record_login_attempt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ip</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">success</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/auth.html#record_login_attempt"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.auth.record_login_attempt" title="Link to this definition"></a></dt>
+<dd><p>Record a login attempt (for account lockout protection).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ip</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Client IP address</p></li>
+<li><p><strong>success</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>) – Whether login was successful</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Failed attempts are tracked for MAX_LOGIN_ATTEMPTS lockout</p></li>
+<li><p>Successful logins clear the history</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.auth.refresh_token">
+<span class="sig-prename descclassname"><span class="pre">webserver.auth.</span></span><span class="sig-name descname"><span class="pre">refresh_token</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">old_token</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/auth.html#refresh_token"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.auth.refresh_token" title="Link to this definition"></a></dt>
+<dd><p>Refresh an existing token (extends expiry).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>old_token</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Current JWT token</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>New JWT token with extended expiry</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>HTTPException</strong> – If token is invalid (401)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.auth.require_auth">
+<span class="sig-prename descclassname"><span class="pre">webserver.auth.</span></span><span class="sig-name descname"><span class="pre">require_auth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">required_privilege</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/auth.html#require_auth"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.auth.require_auth" title="Link to this definition"></a></dt>
+<dd><p>FastAPI dependency factory: Require authentication with optional privilege check.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>required_privilege</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – Minimum required privilege (PRIVILEGE_ADMIN or PRIVILEGE_ENDPOINT)
+If None, any authenticated user is allowed</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>FastAPI dependency function</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>HTTPException</strong> – If unauthorized (401) or insufficient privilege (403)</p>
+</dd>
+</dl>
+<dl>
+<dt>Usage:</dt><dd><p># Any authenticated user
+&#64;app.get(“/users”, dependencies=[Depends(require_auth())])</p>
+<p># Admin only
+&#64;app.delete(“/users/{user_id}”, dependencies=[Depends(require_auth(PRIVILEGE_ADMIN))])</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.auth.verify_password">
+<span class="sig-prename descclassname"><span class="pre">webserver.auth.</span></span><span class="sig-name descname"><span class="pre">verify_password</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">password</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hashed</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/auth.html#verify_password"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.auth.verify_password" title="Link to this definition"></a></dt>
+<dd><p>Verify a password against a bcrypt hash.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>password</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Plain text password</p></li>
+<li><p><strong>hashed</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Bcrypt hash string</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>True if password matches, False otherwise</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">hashed</span> <span class="o">=</span> <span class="n">hash_password</span><span class="p">(</span><span class="s2">&quot;secret123&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">verify_password</span><span class="p">(</span><span class="s2">&quot;secret123&quot;</span><span class="p">,</span> <span class="n">hashed</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">verify_password</span><span class="p">(</span><span class="s2">&quot;wrong&quot;</span><span class="p">,</span> <span class="n">hashed</span><span class="p">)</span>
+<span class="go">False</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.auth.verify_token">
+<span class="sig-prename descclassname"><span class="pre">webserver.auth.</span></span><span class="sig-name descname"><span class="pre">verify_token</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/auth.html#verify_token"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.auth.verify_token" title="Link to this definition"></a></dt>
+<dd><p>Verify and decode a JWT token.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>token</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – JWT token string</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>]</span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Decoded payload dict with ‘login’ and ‘privilege’</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>HTTPException</strong> – If token is invalid or expired (401)</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">payload</span> <span class="o">=</span> <span class="n">verify_token</span><span class="p">(</span><span class="s2">&quot;eyJhbGci...&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="s1">&#39;login&#39;</span><span class="p">])</span>
+<span class="go">admin</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="module-webserver.biometric_worker">
+<span id="webserver-biometric-worker-module"></span><h2>webserver.biometric_worker module<a class="headerlink" href="#module-webserver.biometric_worker" title="Link to this heading"></a></h2>
+<p>Biometric Worker Functions for ProcessPool</p>
+<p>This module provides isolated worker functions for CPU-bound biometric operations, designed to run in separate processes via ProcessPoolExecutor.
+Functions include 1:1 verification, 1:N identification, user enrollment, and batch folder loading. All heavy imports (e.g., supermatcher) are performed inside the worker functions to avoid pickling issues and maximize multiprocessing efficiency.</p>
+<dl class="simple">
+<dt>Multiprocessing Strategy:</dt><dd><ol class="arabic simple">
+<li><p>VERIFY (1:1 matching): No multiprocessing within a single request; server-level parallelism only.</p></li>
+<li><p>IDENTIFY (1:N matching): Adaptive multiprocessing; sequential for small galleries, parallel for large galleries (≥20 users).</p></li>
+<li><p>ADD_USER (enrollment): No multiprocessing within a single user; server-level parallelism for multiple requests.</p></li>
+<li><p>LOAD_FOLDER (batch enrollment): Full multiprocessing; each user enrolled in parallel.</p></li>
+</ol>
+</dd>
+</dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.biometric_worker.worker_enroll">
+<span class="sig-prename descclassname"><span class="pre">webserver.biometric_worker.</span></span><span class="sig-name descname"><span class="pre">worker_enroll</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">settings</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/biometric_worker.html#worker_enroll"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.biometric_worker.worker_enroll" title="Link to this definition"></a></dt>
+<dd><p>Enroll a user from a list of fingerprint images (runs in ProcessPool).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>image_paths</strong> (<em>List</em><em>[</em><em>str</em><em>]</em>) – List of image file paths.</p></li>
+<li><p><strong>user_id</strong> (<em>str</em>) – User identifier.</p></li>
+<li><p><strong>settings</strong> (<em>dict</em>) – Enrollment settings, including ‘quality_threshold’ and ‘fusion’.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>Enrollment result with keys:</dt><dd><ul class="simple">
+<li><p>’success’ (bool): Whether enrollment succeeded.</p></li>
+<li><p>’template_secure’ (dict): Secure serialization of the template.</p></li>
+<li><p>’quality’ (float): Quality score of the template.</p></li>
+<li><p>’num_images’ (int): Number of images used.</p></li>
+<li><p>’error’ (Optional[str]): Error message if enrollment failed.</p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.biometric_worker.worker_enroll_single_user">
+<span class="sig-prename descclassname"><span class="pre">webserver.biometric_worker.</span></span><span class="sig-name descname"><span class="pre">worker_enroll_single_user</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">user_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">settings</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/biometric_worker.html#worker_enroll_single_user"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.biometric_worker.worker_enroll_single_user" title="Link to this definition"></a></dt>
+<dd><p>Enroll a single user from multiple fingerprint images (for parallel processing).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>user_id</strong> (<em>str</em>) – User identifier.</p></li>
+<li><p><strong>image_paths</strong> (<em>List</em><em>[</em><em>str</em><em>]</em>) – List of image file paths for this user.</p></li>
+<li><p><strong>settings</strong> (<em>dict</em>) – Enrollment settings, including ‘quality_threshold’ and ‘fusion’.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>Enrollment result with keys:</dt><dd><ul class="simple">
+<li><p>’success’ (bool): Whether enrollment succeeded.</p></li>
+<li><p>’user_id’ (str): User identifier.</p></li>
+<li><p>’template_secure’ (dict): Secure serialization of the template.</p></li>
+<li><p>’quality’ (float): Quality score of the template.</p></li>
+<li><p>’num_images’ (int): Number of images used.</p></li>
+<li><p>’error’ (Optional[str]): Error message if enrollment failed.</p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.biometric_worker.worker_identify">
+<span class="sig-prename descclassname"><span class="pre">webserver.biometric_worker.</span></span><span class="sig-name descname"><span class="pre">worker_identify</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">probe_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gallery_secure_dicts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">settings</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">top_k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/biometric_worker.html#worker_identify"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.biometric_worker.worker_identify" title="Link to this definition"></a></dt>
+<dd><p>Perform 1:N fingerprint identification of a probe image against a gallery.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>probe_path</strong> (<em>str</em>) – Path to the probe image file.</p></li>
+<li><p><strong>gallery_secure_dicts</strong> (<em>Dict</em><em>[</em><em>str</em><em>, </em><em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>]</em>) – Mapping of user_id to secure dict of FingerprintTemplate.</p></li>
+<li><p><strong>threshold</strong> (<em>float</em>) – Identification threshold for a match.</p></li>
+<li><p><strong>settings</strong> (<em>dict</em>) – Matching settings.</p></li>
+<li><p><strong>top_k</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of top matches to return. Defaults to 5.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>Identification result with keys:</dt><dd><ul class="simple">
+<li><p>’success’ (bool): Whether identification succeeded.</p></li>
+<li><p>’matches’ (List[dict]): List of matches with user_id, score, and num_matched.</p></li>
+<li><p>’identified’ (bool): Whether a match above threshold was found.</p></li>
+<li><p>’best_match_id’ (Optional[str]): User ID of the best match, if any.</p></li>
+<li><p>’best_score’ (float): Score of the best match.</p></li>
+<li><p>’error’ (Optional[str]): Error message if identification failed.</p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.biometric_worker.worker_load_folder">
+<span class="sig-prename descclassname"><span class="pre">webserver.biometric_worker.</span></span><span class="sig-name descname"><span class="pre">worker_load_folder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">settings</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress_callback</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/biometric_worker.html#worker_load_folder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.biometric_worker.worker_load_folder" title="Link to this definition"></a></dt>
+<dd><p>Batch-enroll all users from a folder structure using parallel processing.</p>
+<dl class="simple">
+<dt>Expects folder structure:</dt><dd><dl class="simple">
+<dt>folder_path/</dt><dd><dl class="simple">
+<dt>user1/</dt><dd><p>img1.png
+img2.png</p>
+</dd>
+<dt>user2/</dt><dd><p>img1.png
+img2.png</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folder_path</strong> (<em>str</em>) – Path to the folder containing user subfolders or flat image files.</p></li>
+<li><p><strong>settings</strong> (<em>dict</em>) – Enrollment settings.</p></li>
+<li><p><strong>progress_callback</strong> (<em>Optional</em><em>[</em><em>Callable</em><em>]</em>) – Optional callback function called as progress is made.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>Batch enrollment result with keys:</dt><dd><ul class="simple">
+<li><p>’success’ (bool): Whether the operation succeeded.</p></li>
+<li><p>’enrolled’ (List[dict]): List of successfully enrolled users with user_id, template_secure, and quality.</p></li>
+<li><p>’failed’ (List[dict]): List of failed enrollments with user_id and error.</p></li>
+<li><p>’total’ (int): Total number of users processed.</p></li>
+<li><p>’error’ (Optional[str]): Error message if the operation failed.</p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.biometric_worker.worker_match_probe_against_gallery_chunk">
+<span class="sig-prename descclassname"><span class="pre">webserver.biometric_worker.</span></span><span class="sig-name descname"><span class="pre">worker_match_probe_against_gallery_chunk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">probe_secure_dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gallery_chunk_secure_dicts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hasher_params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/biometric_worker.html#worker_match_probe_against_gallery_chunk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.biometric_worker.worker_match_probe_against_gallery_chunk" title="Link to this definition"></a></dt>
+<dd><p>Match a probe fingerprint against a chunk of gallery templates in parallel.</p>
+<p>Used for parallel identification in large galleries. Each chunk is processed in a separate process.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>probe_secure_dict</strong> (<em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em>) – Secure dict of the probe FingerprintTemplate.</p></li>
+<li><p><strong>gallery_chunk_secure_dicts</strong> (<em>Dict</em><em>[</em><em>str</em><em>, </em><em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>]</em>) – Mapping of user_id to secure dict for a subset of the gallery.</p></li>
+<li><p><strong>hasher_params</strong> (<em>dict</em>) – Parameters for the CancelableHasher.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of (user_id, score) tuples for this chunk.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List[Tuple[str, float]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.biometric_worker.worker_verify">
+<span class="sig-prename descclassname"><span class="pre">webserver.biometric_worker.</span></span><span class="sig-name descname"><span class="pre">worker_verify</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">probe_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">template_secure_dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">settings</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/biometric_worker.html#worker_verify"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.biometric_worker.worker_verify" title="Link to this definition"></a></dt>
+<dd><p>Perform 1:1 fingerprint verification between a probe image and an enrolled template.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>probe_path</strong> (<em>str</em>) – Path to the probe image file.</p></li>
+<li><p><strong>template_secure_dict</strong> (<em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em>) – Secure dict of the enrolled FingerprintTemplate.</p></li>
+<li><p><strong>threshold</strong> (<em>float</em>) – Verification threshold for a match.</p></li>
+<li><p><strong>settings</strong> (<em>dict</em>) – Matching settings.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>Verification result with keys:</dt><dd><ul class="simple">
+<li><p>’success’ (bool): Whether verification succeeded.</p></li>
+<li><p>’match’ (bool): Whether the probe matches the template.</p></li>
+<li><p>’score’ (float): Combined match score.</p></li>
+<li><p>’num_matched’ (int): Number of matched minutiae (approximate).</p></li>
+<li><p>’error’ (Optional[str]): Error message if verification failed.</p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-webserver.config">
+<span id="webserver-config-module"></span><h2>webserver.config module<a class="headerlink" href="#module-webserver.config" title="Link to this heading"></a></h2>
+<p>WebServer Configuration</p>
+<p>Centralized configuration for the biometric webserver.
+All settings, including paths, server parameters, authentication, security, biometric thresholds, multiprocessing, background jobs, and cache, are defined here for easy adjustment without modifying the source code. Helper functions are provided for secure key management and directory setup.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.config.ensure_directories">
+<span class="sig-prename descclassname"><span class="pre">webserver.config.</span></span><span class="sig-name descname"><span class="pre">ensure_directories</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/config.html#ensure_directories"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.config.ensure_directories" title="Link to this definition"></a></dt>
+<dd><p>Ensure all required directories for certificates, logs, and database exist.</p>
+<p>Creates directories if they do not already exist.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.config.get_db_key">
+<span class="sig-prename descclassname"><span class="pre">webserver.config.</span></span><span class="sig-name descname"><span class="pre">get_db_key</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/config.html#get_db_key"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.config.get_db_key" title="Link to this definition"></a></dt>
+<dd><p>Get or generate the database encryption key.</p>
+<p>If the key file exists, reads and returns the key. Otherwise, generates a new secure key, saves it to the file system, and returns it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The database encryption key.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.config.get_jwt_secret">
+<span class="sig-prename descclassname"><span class="pre">webserver.config.</span></span><span class="sig-name descname"><span class="pre">get_jwt_secret</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/config.html#get_jwt_secret"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.config.get_jwt_secret" title="Link to this definition"></a></dt>
+<dd><p>Get or generate the JWT secret key for token signing.</p>
+<p>If the secret file exists, reads and returns the secret. Otherwise, generates a new secure secret, saves it to the file system, and returns it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The JWT secret key.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-webserver.database">
+<span id="webserver-database-module"></span><h2>webserver.database module<a class="headerlink" href="#module-webserver.database" title="Link to this heading"></a></h2>
+<p>Database Module - SQLite Encrypted Database Management</p>
+<p>This module handles all database operations for the biometric webserver, including user authentication, secure fingerprint template storage, audit logging, and background job tracking. It uses SQLCipher for encrypted storage when available, and stores fingerprint templates in a secure, non-pickle format (protected hash and minutiae only). All operations are logged for auditing and compliance.</p>
+<dl class="simple">
+<dt>Tables:</dt><dd><ul class="simple">
+<li><p>auth_users: Authentication credentials (admin/endpoint)</p></li>
+<li><p>fingerprints: Biometric templates (secure format, NO pickle)</p></li>
+<li><p>audit_log: All operations log</p></li>
+<li><p>jobs: Background job status</p></li>
+</ul>
+</dd>
+<dt>Security:</dt><dd><ul class="simple">
+<li><p>Templates are stored as protected hash and minutiae JSON (no raw features, no pickle blobs)</p></li>
+<li><p>All sensitive operations are audited</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py class">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">webserver.database.</span></span><span class="sig-name descname"><span class="pre">BiometricDatabase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">db_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encryption_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>SQLite database manager for the biometric system with encryption support.</p>
+<p>This class provides methods for user authentication, secure fingerprint template storage, audit logging, and background job management. It supports encrypted storage using SQLCipher and ensures all sensitive operations are logged for security and compliance.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.add_fingerprint">
+<span class="sig-name descname"><span class="pre">add_fingerprint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">user_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">template_obj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'system'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.add_fingerprint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.add_fingerprint" title="Link to this definition"></a></dt>
+<dd><p>Add a fingerprint template to the database in secure format.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>user_id</strong> (<em>str</em>) – Unique user identifier.</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – User’s name.</p></li>
+<li><p><strong>template_obj</strong> (<em>Any</em>) – FingerprintTemplate object from supermatcher v1.0.</p></li>
+<li><p><strong>username</strong> (<em>str</em><em>, </em><em>optional</em>) – Username who performed the operation. Defaults to “system”.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the template was added successfully, False if the user already exists.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.authenticate">
+<span class="sig-name descname"><span class="pre">authenticate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">username</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.authenticate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.authenticate" title="Link to this definition"></a></dt>
+<dd><p>Authenticate a user by verifying their username and password.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>username</strong> (<em>str</em>) – Username to authenticate.</p></li>
+<li><p><strong>password</strong> (<em>str</em>) – Plain text password to verify.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary with user info if authentication succeeds, None otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[Dict[str, str]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.cleanup_old_jobs">
+<span class="sig-name descname"><span class="pre">cleanup_old_jobs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hours</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">24</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.cleanup_old_jobs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.cleanup_old_jobs" title="Link to this definition"></a></dt>
+<dd><p>Delete completed or failed jobs older than a specified number of hours.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>hours</strong> (<em>int</em><em>, </em><em>optional</em>) – Delete jobs older than this many hours. Defaults to 24.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Number of deleted jobs.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.close"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.close" title="Link to this definition"></a></dt>
+<dd><p>Close the database connection.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.create_auth_user">
+<span class="sig-name descname"><span class="pre">create_auth_user</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">username</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">privilege</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.create_auth_user"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.create_auth_user" title="Link to this definition"></a></dt>
+<dd><p>Create a new authentication user in the database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>username</strong> (<em>str</em>) – Username for the new user.</p></li>
+<li><p><strong>password</strong> (<em>str</em>) – Plain text password (will be securely hashed).</p></li>
+<li><p><strong>privilege</strong> (<em>str</em>) – User privilege, either ‘admin’ or ‘endpoint’.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the user was created successfully, False if the username already exists.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.create_job">
+<span class="sig-name descname"><span class="pre">create_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">job_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.create_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.create_job" title="Link to this definition"></a></dt>
+<dd><p>Create a new background job entry in the database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>job_id</strong> (<em>str</em>) – Unique job identifier.</p></li>
+<li><p><strong>job_type</strong> (<em>str</em>) – Type of job (e.g., ‘load_folder’).</p></li>
+<li><p><strong>created_by</strong> (<em>str</em>) – Username who created the job.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the job was created successfully, False if the job ID already exists.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.delete_all_fingerprints">
+<span class="sig-name descname"><span class="pre">delete_all_fingerprints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'system'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.delete_all_fingerprints"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.delete_all_fingerprints" title="Link to this definition"></a></dt>
+<dd><p>Delete all fingerprints from the database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>username</strong> (<em>str</em><em>, </em><em>optional</em>) – Username who performed the operation. Defaults to “system”.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Number of deleted fingerprint records.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.delete_fingerprint">
+<span class="sig-name descname"><span class="pre">delete_fingerprint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">user_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'system'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.delete_fingerprint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.delete_fingerprint" title="Link to this definition"></a></dt>
+<dd><p>Delete a fingerprint from the database by user ID.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>user_id</strong> (<em>str</em>) – User identifier.</p></li>
+<li><p><strong>username</strong> (<em>str</em><em>, </em><em>optional</em>) – Username who performed the operation. Defaults to “system”.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the fingerprint was deleted successfully, False otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.get_all_templates">
+<span class="sig-name descname"><span class="pre">get_all_templates</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.get_all_templates"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.get_all_templates" title="Link to this definition"></a></dt>
+<dd><p>Retrieve all fingerprint templates for caching or batch operations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List of (user_id, template_object) tuples.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>List[Tuple[str, Any]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.get_audit_log">
+<span class="sig-name descname"><span class="pre">get_audit_log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.get_audit_log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.get_audit_log" title="Link to this definition"></a></dt>
+<dd><p>Retrieve recent audit log entries from the database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>limit</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum number of entries to return. Defaults to 100.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of audit log entry dictionaries.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List[Dict[str, Any]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.get_fingerprint">
+<span class="sig-name descname"><span class="pre">get_fingerprint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">user_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.get_fingerprint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.get_fingerprint" title="Link to this definition"></a></dt>
+<dd><p>Retrieve a fingerprint template and metadata for a given user ID.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>user_id</strong> (<em>str</em>) – User identifier.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary with template info and metadata, or None if not found.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[Dict[str, Any]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.get_job">
+<span class="sig-name descname"><span class="pre">get_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.get_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.get_job" title="Link to this definition"></a></dt>
+<dd><p>Retrieve the status and details of a background job by job ID.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>job_id</strong> (<em>str</em>) – Job identifier.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary with job info if found, None otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[Dict[str, Any]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.get_stats">
+<span class="sig-name descname"><span class="pre">get_stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.get_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.get_stats" title="Link to this definition"></a></dt>
+<dd><p>Get system statistics for users, templates, and authentication.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dictionary with statistics (user count, average quality, etc.).</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dict[str, Any]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.list_fingerprints">
+<span class="sig-name descname"><span class="pre">list_fingerprints</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.list_fingerprints"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.list_fingerprints" title="Link to this definition"></a></dt>
+<dd><p>List all fingerprints in the database (without template blobs).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List of dictionaries with fingerprint metadata.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>List[Dict[str, Any]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.reset_admin_password">
+<span class="sig-name descname"><span class="pre">reset_admin_password</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_password</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.reset_admin_password"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.reset_admin_password" title="Link to this definition"></a></dt>
+<dd><p>Reset the admin password for account recovery.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>new_password</strong> (<em>str</em>) – New plain text password for the admin account.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the password was reset successfully, False otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.update_fingerprint">
+<span class="sig-name descname"><span class="pre">update_fingerprint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">user_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">template_obj</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'system'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.update_fingerprint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.update_fingerprint" title="Link to this definition"></a></dt>
+<dd><p>Update a fingerprint’s metadata or template in the database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>user_id</strong> (<em>str</em>) – User identifier.</p></li>
+<li><p><strong>name</strong> (<em>str</em><em>, </em><em>optional</em>) – New name for the user.</p></li>
+<li><p><strong>template_obj</strong> (<em>Any</em><em>, </em><em>optional</em>) – New fingerprint template object.</p></li>
+<li><p><strong>username</strong> (<em>str</em><em>, </em><em>optional</em>) – Username who performed the operation. Defaults to “system”.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the fingerprint was updated successfully, False otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.database.BiometricDatabase.update_job">
+<span class="sig-name descname"><span class="pre">update_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">status</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">result</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.update_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.database.BiometricDatabase.update_job" title="Link to this definition"></a></dt>
+<dd><p>Update the status or details of a background job in the database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>job_id</strong> (<em>str</em>) – Job identifier.</p></li>
+<li><p><strong>status</strong> (<em>str</em><em>, </em><em>optional</em>) – New status (‘pending’, ‘processing’, ‘completed’, ‘failed’).</p></li>
+<li><p><strong>progress</strong> (<em>str</em><em>, </em><em>optional</em>) – Progress information (JSON string).</p></li>
+<li><p><strong>result</strong> (<em>str</em><em>, </em><em>optional</em>) – Result data (JSON string).</p></li>
+<li><p><strong>error</strong> (<em>str</em><em>, </em><em>optional</em>) – Error message.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the job was updated successfully, False otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-webserver.jobs">
+<span id="webserver-jobs-module"></span><h2>webserver.jobs module<a class="headerlink" href="#module-webserver.jobs" title="Link to this heading"></a></h2>
+<p>Background Job Management</p>
+<p>This module manages long-running background tasks such as folder loading and batch operations, with database persistence and progress tracking. It provides a JobManager class for creating, tracking, and cleaning up jobs, and integrates with the biometric worker pool and logging system.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="webserver.jobs.JobManager">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">webserver.jobs.</span></span><span class="sig-name descname"><span class="pre">JobManager</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">db</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">executor</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/jobs.html#JobManager"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.jobs.JobManager" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Manages background jobs with database persistence and progress tracking.</p>
+<p>The JobManager handles creation, execution, status tracking, and cleanup of background jobs such as folder loading. It uses a ProcessPoolExecutor for running jobs asynchronously and updates job status in the database. Job progress and results are logged for auditing and monitoring.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.jobs.JobManager.cancel_job">
+<span class="sig-name descname"><span class="pre">cancel_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/jobs.html#JobManager.cancel_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.jobs.JobManager.cancel_job" title="Link to this definition"></a></dt>
+<dd><p>Attempt to cancel a running job.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>job_id</strong> (<em>str</em>) – Job ID to cancel.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the job was cancelled, False if it was not running or could not be cancelled.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.jobs.JobManager.cleanup_old_jobs">
+<span class="sig-name descname"><span class="pre">cleanup_old_jobs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">days</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">7</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/jobs.html#JobManager.cleanup_old_jobs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.jobs.JobManager.cleanup_old_jobs" title="Link to this definition"></a></dt>
+<dd><p>Remove old completed or failed jobs from the database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>days</strong> (<em>int</em>) – Age threshold in days. Jobs older than this will be deleted.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Number of jobs removed from the database.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.jobs.JobManager.create_load_folder_job">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">create_load_folder_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/jobs.html#JobManager.create_load_folder_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.jobs.JobManager.create_load_folder_job" title="Link to this definition"></a></dt>
+<dd><p>Create and start a background job to load a folder of user subfolders.</p>
+<p>This method creates a new job record in the database, submits the folder loading task to the process pool, and tracks its progress asynchronously. The job status is updated throughout its lifecycle.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folder_path</strong> (<em>str</em>) – Path to the folder containing user subfolders.</p></li>
+<li><p><strong>created_by</strong> (<em>str</em>) – Username who created the job.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Job ID (UUID) of the created job.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.jobs.JobManager.get_job_status">
+<span class="sig-name descname"><span class="pre">get_job_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/jobs.html#JobManager.get_job_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.jobs.JobManager.get_job_status" title="Link to this definition"></a></dt>
+<dd><p>Retrieve the status and details of a job from the database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>job_id</strong> (<em>str</em>) – Job ID to query.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Job dictionary if found, otherwise None.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[Dict[str, Any]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.jobs.JobManager.get_running_jobs">
+<span class="sig-name descname"><span class="pre">get_running_jobs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/jobs.html#JobManager.get_running_jobs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.jobs.JobManager.get_running_jobs" title="Link to this definition"></a></dt>
+<dd><p>Get a dictionary of currently running jobs and their information.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Mapping of job_id to job information for all running jobs.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dict[str, Any]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-webserver.logger">
+<span id="webserver-logger-module"></span><h2>webserver.logger module<a class="headerlink" href="#module-webserver.logger" title="Link to this heading"></a></h2>
+<p>Webserver Logging System</p>
+<p>This module provides a structured logging system for the webserver, supporting multiple log files with automatic rotation and convenience functions for logging access, authentication, biometric operations, errors, jobs, and server events. It also supports structured JSON logging for external aggregation and log cleanup utilities.</p>
+<dl class="simple">
+<dt>Log Files:</dt><dd><ul class="simple">
+<li><p>access.log: HTTP requests (IP, endpoint, status, duration)</p></li>
+<li><p>auth.log: Authentication events (login, logout, failed attempts)</p></li>
+<li><p>biometric.log: Biometric operations (enroll, verify, identify results)</p></li>
+<li><p>error.log: Application errors and exceptions</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.logger.cleanup_old_logs">
+<span class="sig-prename descclassname"><span class="pre">webserver.logger.</span></span><span class="sig-name descname"><span class="pre">cleanup_old_logs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">days</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/logger.html#cleanup_old_logs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.logger.cleanup_old_logs" title="Link to this definition"></a></dt>
+<dd><p>Delete log files older than the specified number of days from the log directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>days</strong> (<em>int</em>) – Age threshold in days. Files older than this will be deleted.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.logger.get_logger">
+<span class="sig-prename descclassname"><span class="pre">webserver.logger.</span></span><span class="sig-name descname"><span class="pre">get_logger</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/logger.html#get_logger"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.logger.get_logger" title="Link to this definition"></a></dt>
+<dd><p>Get a custom logger that writes to error.log, for specialized logging needs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<em>str</em>) – Logger name.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Logger instance for custom usage.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>logging.Logger</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.logger.log_access">
+<span class="sig-prename descclassname"><span class="pre">webserver.logger.</span></span><span class="sig-name descname"><span class="pre">log_access</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ip</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">endpoint</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">status_code</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">duration_ms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/logger.html#log_access"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.logger.log_access" title="Link to this definition"></a></dt>
+<dd><p>Log an HTTP access event to the access log.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ip</strong> (<em>str</em>) – Client IP address.</p></li>
+<li><p><strong>method</strong> (<em>str</em>) – HTTP method (GET, POST, etc.).</p></li>
+<li><p><strong>endpoint</strong> (<em>str</em>) – Request endpoint path.</p></li>
+<li><p><strong>status_code</strong> (<em>int</em>) – HTTP status code returned.</p></li>
+<li><p><strong>duration_ms</strong> (<em>float</em>) – Request duration in milliseconds.</p></li>
+<li><p><strong>user</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em>) – Authenticated username, if available.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.logger.log_auth">
+<span class="sig-prename descclassname"><span class="pre">webserver.logger.</span></span><span class="sig-name descname"><span class="pre">log_auth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">login</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ip</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">success</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">details</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/logger.html#log_auth"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.logger.log_auth" title="Link to this definition"></a></dt>
+<dd><p>Log an authentication event to the authentication log.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>event</strong> (<em>str</em>) – Event type (e.g., LOGIN, LOGOUT, TOKEN_REFRESH).</p></li>
+<li><p><strong>login</strong> (<em>str</em>) – Username involved in the event.</p></li>
+<li><p><strong>ip</strong> (<em>str</em>) – Client IP address.</p></li>
+<li><p><strong>success</strong> (<em>bool</em>) – Whether the authentication operation succeeded. Defaults to True.</p></li>
+<li><p><strong>details</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em>) – Additional details about the event.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.logger.log_biometric">
+<span class="sig-prename descclassname"><span class="pre">webserver.logger.</span></span><span class="sig-name descname"><span class="pre">log_biometric</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">operation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">result</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">details</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">performed_by</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/logger.html#log_biometric"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.logger.log_biometric" title="Link to this definition"></a></dt>
+<dd><p>Log a biometric operation event to the biometric log.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>operation</strong> (<em>str</em>) – Operation type (ENROLL, VERIFY, IDENTIFY).</p></li>
+<li><p><strong>user_id</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em>) – Target user ID (for enroll/verify) or None (for identify).</p></li>
+<li><p><strong>result</strong> (<em>str</em>) – Operation result (e.g., SUCCESS, FAILURE, NO_MATCH).</p></li>
+<li><p><strong>details</strong> (<em>Optional</em><em>[</em><em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>]</em>) – Additional details such as score, quality, matches, etc.</p></li>
+<li><p><strong>performed_by</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em>) – Username who performed the operation.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.logger.log_error">
+<span class="sig-prename descclassname"><span class="pre">webserver.logger.</span></span><span class="sig-name descname"><span class="pre">log_error</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">error</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ip</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/logger.html#log_error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.logger.log_error" title="Link to this definition"></a></dt>
+<dd><p>Log an application error or exception to the error log.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>error</strong> (<em>Exception</em>) – Exception object to log.</p></li>
+<li><p><strong>context</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em>) – Context where the error occurred (e.g., endpoint, function name).</p></li>
+<li><p><strong>user</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em>) – Authenticated username, if available.</p></li>
+<li><p><strong>ip</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em>) – Client IP address, if available.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.logger.log_job">
+<span class="sig-prename descclassname"><span class="pre">webserver.logger.</span></span><span class="sig-name descname"><span class="pre">log_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">job_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">status</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">details</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/logger.html#log_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.logger.log_job" title="Link to this definition"></a></dt>
+<dd><p>Log a background job event to the access log.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>job_id</strong> (<em>str</em>) – Unique job identifier.</p></li>
+<li><p><strong>job_type</strong> (<em>str</em>) – Type of job (e.g., LOAD_FOLDER).</p></li>
+<li><p><strong>status</strong> (<em>str</em>) – Job status (CREATED, PROCESSING, COMPLETED, FAILED).</p></li>
+<li><p><strong>details</strong> (<em>Optional</em><em>[</em><em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>]</em>) – Additional details about the job.</p></li>
+<li><p><strong>created_by</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em>) – Username who created the job.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.logger.log_json">
+<span class="sig-prename descclassname"><span class="pre">webserver.logger.</span></span><span class="sig-name descname"><span class="pre">log_json</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logger_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/logger.html#log_json"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.logger.log_json" title="Link to this definition"></a></dt>
+<dd><p>Log structured JSON data to the specified logger for external log aggregation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>logger_type</strong> (<em>str</em>) – Logger to use (‘access’, ‘auth’, ‘biometric’, ‘error’).</p></li>
+<li><p><strong>data</strong> (<em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em>) – Dictionary to log as JSON.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.logger.log_shutdown">
+<span class="sig-prename descclassname"><span class="pre">webserver.logger.</span></span><span class="sig-name descname"><span class="pre">log_shutdown</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/logger.html#log_shutdown"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.logger.log_shutdown" title="Link to this definition"></a></dt>
+<dd><p>Log server shutdown event to the access log.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.logger.log_startup">
+<span class="sig-prename descclassname"><span class="pre">webserver.logger.</span></span><span class="sig-name descname"><span class="pre">log_startup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">info</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/logger.html#log_startup"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.logger.log_startup" title="Link to this definition"></a></dt>
+<dd><p>Log server startup information to the access log.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>info</strong> (<em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em>) – Startup information such as host, port, SSL, number of templates, etc.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-webserver.server">
+<span id="webserver-server-module"></span><h2>webserver.server module<a class="headerlink" href="#module-webserver.server" title="Link to this heading"></a></h2>
+<p>FastAPI WebServer - Main Application</p>
+<p>Production-ready biometric authentication server with JWT, rate limiting, and ProcessPool.</p>
+</section>
+<section id="module-webserver">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-webserver" title="Link to this heading"></a></h2>
+<p>Webserver Package - Biometric Authentication System
+FastAPI-based REST API with JWT authentication and ProcessPool biometric operations.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">webserver.</span></span><span class="sig-name descname"><span class="pre">BiometricDatabase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">db_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encryption_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>SQLite database manager for the biometric system with encryption support.</p>
+<p>This class provides methods for user authentication, secure fingerprint template storage, audit logging, and background job management. It supports encrypted storage using SQLCipher and ensures all sensitive operations are logged for security and compliance.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.add_fingerprint">
+<span class="sig-name descname"><span class="pre">add_fingerprint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">user_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">template_obj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'system'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.add_fingerprint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.add_fingerprint" title="Link to this definition"></a></dt>
+<dd><p>Add a fingerprint template to the database in secure format.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>user_id</strong> (<em>str</em>) – Unique user identifier.</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – User’s name.</p></li>
+<li><p><strong>template_obj</strong> (<em>Any</em>) – FingerprintTemplate object from supermatcher v1.0.</p></li>
+<li><p><strong>username</strong> (<em>str</em><em>, </em><em>optional</em>) – Username who performed the operation. Defaults to “system”.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the template was added successfully, False if the user already exists.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.authenticate">
+<span class="sig-name descname"><span class="pre">authenticate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">username</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.authenticate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.authenticate" title="Link to this definition"></a></dt>
+<dd><p>Authenticate a user by verifying their username and password.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>username</strong> (<em>str</em>) – Username to authenticate.</p></li>
+<li><p><strong>password</strong> (<em>str</em>) – Plain text password to verify.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary with user info if authentication succeeds, None otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[Dict[str, str]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.cleanup_old_jobs">
+<span class="sig-name descname"><span class="pre">cleanup_old_jobs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hours</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">24</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.cleanup_old_jobs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.cleanup_old_jobs" title="Link to this definition"></a></dt>
+<dd><p>Delete completed or failed jobs older than a specified number of hours.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>hours</strong> (<em>int</em><em>, </em><em>optional</em>) – Delete jobs older than this many hours. Defaults to 24.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Number of deleted jobs.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.close"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.close" title="Link to this definition"></a></dt>
+<dd><p>Close the database connection.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.create_auth_user">
+<span class="sig-name descname"><span class="pre">create_auth_user</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">username</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">privilege</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.create_auth_user"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.create_auth_user" title="Link to this definition"></a></dt>
+<dd><p>Create a new authentication user in the database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>username</strong> (<em>str</em>) – Username for the new user.</p></li>
+<li><p><strong>password</strong> (<em>str</em>) – Plain text password (will be securely hashed).</p></li>
+<li><p><strong>privilege</strong> (<em>str</em>) – User privilege, either ‘admin’ or ‘endpoint’.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the user was created successfully, False if the username already exists.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.create_job">
+<span class="sig-name descname"><span class="pre">create_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">job_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.create_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.create_job" title="Link to this definition"></a></dt>
+<dd><p>Create a new background job entry in the database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>job_id</strong> (<em>str</em>) – Unique job identifier.</p></li>
+<li><p><strong>job_type</strong> (<em>str</em>) – Type of job (e.g., ‘load_folder’).</p></li>
+<li><p><strong>created_by</strong> (<em>str</em>) – Username who created the job.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the job was created successfully, False if the job ID already exists.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.delete_all_fingerprints">
+<span class="sig-name descname"><span class="pre">delete_all_fingerprints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'system'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.delete_all_fingerprints"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.delete_all_fingerprints" title="Link to this definition"></a></dt>
+<dd><p>Delete all fingerprints from the database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>username</strong> (<em>str</em><em>, </em><em>optional</em>) – Username who performed the operation. Defaults to “system”.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Number of deleted fingerprint records.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.delete_fingerprint">
+<span class="sig-name descname"><span class="pre">delete_fingerprint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">user_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'system'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.delete_fingerprint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.delete_fingerprint" title="Link to this definition"></a></dt>
+<dd><p>Delete a fingerprint from the database by user ID.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>user_id</strong> (<em>str</em>) – User identifier.</p></li>
+<li><p><strong>username</strong> (<em>str</em><em>, </em><em>optional</em>) – Username who performed the operation. Defaults to “system”.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the fingerprint was deleted successfully, False otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.get_all_templates">
+<span class="sig-name descname"><span class="pre">get_all_templates</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.get_all_templates"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.get_all_templates" title="Link to this definition"></a></dt>
+<dd><p>Retrieve all fingerprint templates for caching or batch operations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List of (user_id, template_object) tuples.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>List[Tuple[str, Any]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.get_audit_log">
+<span class="sig-name descname"><span class="pre">get_audit_log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.get_audit_log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.get_audit_log" title="Link to this definition"></a></dt>
+<dd><p>Retrieve recent audit log entries from the database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>limit</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum number of entries to return. Defaults to 100.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of audit log entry dictionaries.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List[Dict[str, Any]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.get_fingerprint">
+<span class="sig-name descname"><span class="pre">get_fingerprint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">user_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.get_fingerprint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.get_fingerprint" title="Link to this definition"></a></dt>
+<dd><p>Retrieve a fingerprint template and metadata for a given user ID.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>user_id</strong> (<em>str</em>) – User identifier.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary with template info and metadata, or None if not found.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[Dict[str, Any]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.get_job">
+<span class="sig-name descname"><span class="pre">get_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.get_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.get_job" title="Link to this definition"></a></dt>
+<dd><p>Retrieve the status and details of a background job by job ID.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>job_id</strong> (<em>str</em>) – Job identifier.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary with job info if found, None otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[Dict[str, Any]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.get_stats">
+<span class="sig-name descname"><span class="pre">get_stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.get_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.get_stats" title="Link to this definition"></a></dt>
+<dd><p>Get system statistics for users, templates, and authentication.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dictionary with statistics (user count, average quality, etc.).</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dict[str, Any]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.list_fingerprints">
+<span class="sig-name descname"><span class="pre">list_fingerprints</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.list_fingerprints"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.list_fingerprints" title="Link to this definition"></a></dt>
+<dd><p>List all fingerprints in the database (without template blobs).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List of dictionaries with fingerprint metadata.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>List[Dict[str, Any]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.reset_admin_password">
+<span class="sig-name descname"><span class="pre">reset_admin_password</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_password</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.reset_admin_password"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.reset_admin_password" title="Link to this definition"></a></dt>
+<dd><p>Reset the admin password for account recovery.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>new_password</strong> (<em>str</em>) – New plain text password for the admin account.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the password was reset successfully, False otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.update_fingerprint">
+<span class="sig-name descname"><span class="pre">update_fingerprint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">user_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">template_obj</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'system'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.update_fingerprint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.update_fingerprint" title="Link to this definition"></a></dt>
+<dd><p>Update a fingerprint’s metadata or template in the database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>user_id</strong> (<em>str</em>) – User identifier.</p></li>
+<li><p><strong>name</strong> (<em>str</em><em>, </em><em>optional</em>) – New name for the user.</p></li>
+<li><p><strong>template_obj</strong> (<em>Any</em><em>, </em><em>optional</em>) – New fingerprint template object.</p></li>
+<li><p><strong>username</strong> (<em>str</em><em>, </em><em>optional</em>) – Username who performed the operation. Defaults to “system”.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the fingerprint was updated successfully, False otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="webserver.BiometricDatabase.update_job">
+<span class="sig-name descname"><span class="pre">update_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">status</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">result</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/database.html#BiometricDatabase.update_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.BiometricDatabase.update_job" title="Link to this definition"></a></dt>
+<dd><p>Update the status or details of a background job in the database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>job_id</strong> (<em>str</em>) – Job identifier.</p></li>
+<li><p><strong>status</strong> (<em>str</em><em>, </em><em>optional</em>) – New status (‘pending’, ‘processing’, ‘completed’, ‘failed’).</p></li>
+<li><p><strong>progress</strong> (<em>str</em><em>, </em><em>optional</em>) – Progress information (JSON string).</p></li>
+<li><p><strong>result</strong> (<em>str</em><em>, </em><em>optional</em>) – Result data (JSON string).</p></li>
+<li><p><strong>error</strong> (<em>str</em><em>, </em><em>optional</em>) – Error message.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the job was updated successfully, False otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.create_token">
+<span class="sig-prename descclassname"><span class="pre">webserver.</span></span><span class="sig-name descname"><span class="pre">create_token</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">user_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">privilege</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/auth.html#create_token"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.create_token" title="Link to this definition"></a></dt>
+<dd><p>Create a JWT token for authenticated user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>user_data</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – User information dict (must have ‘login’ and ‘privilege’ keys)</p></li>
+<li><p><strong>privilege</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – Override privilege (optional, uses user_data[‘privilege’] by default)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>JWT token string</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">token</span> <span class="o">=</span> <span class="n">create_token</span><span class="p">({</span><span class="s2">&quot;login&quot;</span><span class="p">:</span> <span class="s2">&quot;admin&quot;</span><span class="p">,</span> <span class="s2">&quot;privilege&quot;</span><span class="p">:</span> <span class="s2">&quot;admin&quot;</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">token</span><span class="p">[:</span><span class="mi">20</span><span class="p">])</span>
+<span class="go">eyJhbGciOiJIUzI1NiIs...</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.get_logger">
+<span class="sig-prename descclassname"><span class="pre">webserver.</span></span><span class="sig-name descname"><span class="pre">get_logger</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/logger.html#get_logger"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.get_logger" title="Link to this definition"></a></dt>
+<dd><p>Get a custom logger that writes to error.log, for specialized logging needs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<em>str</em>) – Logger name.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Logger instance for custom usage.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>logging.Logger</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.require_auth">
+<span class="sig-prename descclassname"><span class="pre">webserver.</span></span><span class="sig-name descname"><span class="pre">require_auth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">required_privilege</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/auth.html#require_auth"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.require_auth" title="Link to this definition"></a></dt>
+<dd><p>FastAPI dependency factory: Require authentication with optional privilege check.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>required_privilege</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – Minimum required privilege (PRIVILEGE_ADMIN or PRIVILEGE_ENDPOINT)
+If None, any authenticated user is allowed</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>FastAPI dependency function</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>HTTPException</strong> – If unauthorized (401) or insufficient privilege (403)</p>
+</dd>
+</dl>
+<dl>
+<dt>Usage:</dt><dd><p># Any authenticated user
+&#64;app.get(“/users”, dependencies=[Depends(require_auth())])</p>
+<p># Admin only
+&#64;app.delete(“/users/{user_id}”, dependencies=[Depends(require_auth(PRIVILEGE_ADMIN))])</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="webserver.verify_token">
+<span class="sig-prename descclassname"><span class="pre">webserver.</span></span><span class="sig-name descname"><span class="pre">verify_token</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/webserver/auth.html#verify_token"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#webserver.verify_token" title="Link to this definition"></a></dt>
+<dd><p>Verify and decode a JWT token.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>token</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – JWT token string</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>]</span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Decoded payload dict with ‘login’ and ‘privilege’</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>HTTPException</strong> – If token is invalid or expired (401)</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">payload</span> <span class="o">=</span> <span class="n">verify_token</span><span class="p">(</span><span class="s2">&quot;eyJhbGci...&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="s1">&#39;login&#39;</span><span class="p">])</span>
+<span class="go">admin</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barreiros.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
