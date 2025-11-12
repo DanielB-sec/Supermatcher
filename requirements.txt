@@ -1,0 +1,12 @@
+uvicorn
+cryptography
+sqlcipher3-wheels
+bcrypt
+fastapi
+numpy
+opencv-python
+scipy
+pyjwt
+psutil
+pydantic
+python-multipart
