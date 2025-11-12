@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Biometric System</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="card login-card fade-in">
+            <div class="login-header">
+                <div class="login-logo">🔐</div>
+                <h1 class="login-title">Biometric System</h1>
+                <p class="login-subtitle">Secure Fingerprint Authentication</p>
+            </div>
+
+            <div id="alert-container"></div>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label class="form-label" for="login">Username</label>
+                    <input 
+                        type="text" 
+                        id="login" 
+                        class="form-input" 
+                        placeholder="Enter your username"
+                        required
+                        autocomplete="username"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        class="form-input" 
+                        placeholder="Enter your password"
+                        required
+                        autocomplete="current-password"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        <span id="login-btn-text">Sign In</span>
+                        <span id="login-spinner" class="hidden">
+                            <div class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>
+                        </span>
+                    </button>
+                </div>
+            </form>
+
+            
+        </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div style="text-align: center;">
+            <div class="spinner" style="margin: 0 auto 1rem;"></div>
+            <div style="color: white; font-weight: 600;">Authenticating...</div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Login form handler
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const login = document.getElementById('login').value;
+            const password = document.getElementById('password').value;
+            
+            // Show loading
+            document.getElementById('login-btn-text').classList.add('hidden');
+            document.getElementById('login-spinner').classList.remove('hidden');
+            document.getElementById('loading-overlay').classList.add('active');
+            
+            try {
+                // Send login credentials in JSON body
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        login: login,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Save token
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('privilege', data.privilege);
+                    localStorage.setItem('login', login);
+                    
+                    // Show success
+                    showAlert('Login successful! Redirecting...', 'success');
+                    
+                    // Redirect based on privilege
+                    setTimeout(() => {
+                        if (data.privilege === 'admin') {
+                            window.location.href = '/admin';
+                        } else {
+                            window.location.href = '/endpoint';
+                        }
+                    }, 500);
+                } else {
+                    showAlert(data.detail || data.error || 'Login failed', 'danger');
+                }
+            } catch (error) {
+                showAlert('Connection error. Please check if server is running.', 'danger');
+                console.error('Login error:', error);
+            } finally {
+                // Hide loading
+                document.getElementById('login-btn-text').classList.remove('hidden');
+                document.getElementById('login-spinner').classList.add('hidden');
+                document.getElementById('loading-overlay').classList.remove('active');
+            }
+        });
+        
+        // Alert helper
+        function showAlert(message, type = 'info') {
+            const container = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} fade-in`;
+            
+            const icon = {
+                success: '✓',
+                danger: '✗',
+                warning: '⚠',
+                info: 'ℹ'
+            }[type] || 'ℹ';
+            
+            alert.innerHTML = `
+                <span style="font-size: 1.25rem;">${icon}</span>
+                <span>${message}</span>
+            `;
+            
+            container.innerHTML = '';
+            container.appendChild(alert);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                alert.style.opacity = '0';
+                setTimeout(() => alert.remove(), 300);
+            }, 5000);
+        }
+        
+        // Check if already logged in
+        window.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('token');
+            const privilege = localStorage.getItem('privilege');
+            
+            if (token && privilege) {
+                // Redirect to appropriate dashboard
+                if (privilege === 'admin') {
+                    window.location.href = '/admin';
+                } else {
+                    window.location.href = '/endpoint';
+                }
+            }
+        });
+    </script>
+</body>
+</html>

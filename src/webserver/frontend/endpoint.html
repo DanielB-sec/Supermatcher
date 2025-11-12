@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Endpoint Dashboard - Biometric System</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div class="dashboard-title">
+            <h1>🔍 Endpoint Dashboard</h1>
+        </div>
+        <div class="user-info">
+            <div>
+                <div style="font-weight: 600;" id="user-login">Loading...</div>
+                <div style="font-size: 0.875rem; color: var(--text-muted);">Endpoint User</div>
+            </div>
+            <div class="user-avatar">E</div>
+            <button class="btn btn-secondary btn-sm" onclick="BiometricAPI.logout()">
+                Logout
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon primary">👥</div>
+                <div class="stat-content">
+                    <div class="stat-label">Enrolled Users</div>
+                    <div class="stat-value" id="stat-users">0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon success">✓</div>
+                <div class="stat-content">
+                    <div class="stat-label">Verifications</div>
+                    <div class="stat-value" id="stat-verifications">0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon warning">🎯</div>
+                <div class="stat-content">
+                    <div class="stat-label">Identifications</div>
+                    <div class="stat-value" id="stat-identifications">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Main Actions -->
+        <div class="grid grid-2" style="margin-top: 2rem;">
+            <!-- Verification Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">🔍 Fingerprint Verification (1:1)</h3>
+                </div>
+                <div class="card-body">
+                    <div class="scanner-container">
+                        <div class="scanner-status waiting" id="verify-status">
+                            Waiting for fingerprint...
+                        </div>
+                        <div class="scanner-display" id="verify-display">
+                            <div class="scanner-placeholder">🖐️</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">User ID to Verify</label>
+                            <input type="text" id="verify-user-id" class="form-input" 
+                                   placeholder="Enter user ID">
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="file-upload" onclick="document.getElementById('verify-file-input').click()">
+                                <input type="file" id="verify-file-input" accept="image/*">
+                                <div style="font-size: 2rem; margin-bottom: 0.5rem;">📁</div>
+                                <div>Click to upload fingerprint</div>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-warning btn-lg" onclick="performVerification()" 
+                                style="width: 100%;">
+                            🔍 Verify Fingerprint
+                        </button>
+                    </div>
+                    
+                    <div id="verify-result" style="margin-top: 1.5rem;"></div>
+                </div>
+            </div>
+
+            <!-- Identification Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">🎯 Fingerprint Identification (1:N)</h3>
+                </div>
+                <div class="card-body">
+                    <div class="scanner-container">
+                        <div class="scanner-status waiting" id="identify-status">
+                            Waiting for fingerprint...
+                        </div>
+                        <div class="scanner-display" id="identify-display">
+                            <div class="scanner-placeholder">🖐️</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="file-upload" onclick="document.getElementById('identify-file-input').click()">
+                                <input type="file" id="identify-file-input" accept="image/*">
+                                <div style="font-size: 2rem; margin-bottom: 0.5rem;">📁</div>
+                                <div>Click to upload fingerprint</div>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-success btn-lg" onclick="performIdentification()" 
+                                style="width: 100%;">
+                            🎯 Identify Fingerprint
+                        </button>
+                    </div>
+                    
+                    <div id="identify-result" style="margin-top: 1.5rem;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users List (Read-only) -->
+        <div class="card" style="margin-top: 2rem;">
+            <div class="card-header">
+                <h3 class="card-title">📋 Enrolled Users</h3>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <span class="badge badge-info" id="user-count-badge">0 users</span>
+                    <button class="btn btn-sm btn-secondary" onclick="refreshUsersList()">
+                        🔄 Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User ID</th>
+                                <th>Name</th>
+                                <th>Quality</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-tbody">
+                            <tr>
+                                <td colspan="4" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                                    <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
+                                    <div>No users enrolled yet.</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-time Updates Log -->
+        <div class="card" style="margin-top: 2rem;">
+            <div class="card-header">
+                <h3 class="card-title">📡 Recent Activity</h3>
+                <button class="btn btn-sm btn-secondary" onclick="clearActivityLog()">Clear</button>
+            </div>
+            <div class="card-body">
+                <div id="activity-log" style="max-height: 300px; overflow-y: auto;">
+                    <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                        Waiting for activity...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div style="text-align: center;">
+            <div class="spinner" style="margin: 0 auto 1rem;"></div>
+            <div id="loading-message" style="color: white; font-weight: 600;">Loading...</div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Check authentication
+        if (!BiometricAPI.requireAuth('endpoint')) {
+            throw new Error('Unauthorized');
+        }
+
+        // Update user info
+        const user = BiometricAPI.getCurrentUser();
+        document.getElementById('user-login').textContent = user.login;
+
+        // Session counters
+        let verificationCount = 0;
+        let identificationCount = 0;
+
+        // ====================================================================
+        // INITIALIZATION
+        // ====================================================================
+
+        async function init() {
+            try {
+                // Load statistics
+                await loadStats();
+                
+                // Load users
+                await refreshUsersList();
+                
+                // Setup file inputs
+                setupFileInputs();
+                
+            } catch (error) {
+                console.error('Initialization error:', error);
+                BiometricAPI.showAlert('alert-container', 'Failed to initialize: ' + error.message, 'danger');
+            }
+        }
+
+        // ====================================================================
+        // FILE INPUT HANDLERS
+        // ====================================================================
+
+        function setupFileInputs() {
+            // Verify file input
+            const verifyInput = document.getElementById('verify-file-input');
+            if (verifyInput) {
+                verifyInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        console.log('📁 Verify file selected:', file.name, file.type, file.size, 'bytes');
+                        
+                        // Try to load and convert to displayable format
+                        const img = new Image();
+                        const reader = new FileReader();
+                        
+                        reader.onload = (event) => {
+                            console.log('✅ Verify file read, data length:', event.target.result.length);
+                            
+                            // Try to load as image
+                            img.onload = () => {
+                                console.log('✅ Verify image decoded, size:', img.width, 'x', img.height);
+                                
+                                // Convert to PNG using canvas (browser-compatible format)
+                                const canvas = document.createElement('canvas');
+                                canvas.width = img.width;
+                                canvas.height = img.height;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(img, 0, 0);
+                                
+                                // Get PNG data URL
+                                const pngDataURL = canvas.toDataURL('image/png');
+                                console.log('✅ Converted to PNG, data length:', pngDataURL.length);
+                                
+                                // Display
+                                const display = document.getElementById('verify-display');
+                                display.innerHTML = 
+                                    `<img src="${pngDataURL}" style="max-width: 100%; max-height: 100%; object-fit: contain; display: block;" alt="Fingerprint">`;
+                                document.getElementById('verify-status').textContent = 'Fingerprint loaded ✓';
+                                document.getElementById('verify-status').className = 'scanner-status scanning';
+                            };
+                            
+                            img.onerror = () => {
+                                console.warn('⚠️ Browser cannot render this format, showing placeholder');
+                                const display = document.getElementById('verify-display');
+                                display.innerHTML = `<div style="color: var(--text-muted); text-align: center;">
+                                    <div style="font-size: 3rem;">📄</div>
+                                    <div>${file.name}</div>
+                                    <div style="font-size: 0.875rem; margin-top: 0.5rem;">Format: ${file.type || 'unknown'}</div>
+                                    <div style="font-size: 0.875rem;">File will be processed on server</div>
+                                </div>`;
+                                document.getElementById('verify-status').textContent = 'File loaded (preview unavailable)';
+                                document.getElementById('verify-status').className = 'scanner-status scanning';
+                            };
+                            
+                            img.src = event.target.result;
+                        };
+                        
+                        reader.onerror = (error) => {
+                            console.error('❌ Error reading verify file:', error);
+                        };
+                        
+                        reader.readAsDataURL(file);
+                    }
+                });
+                console.log('✅ Verify file input listener attached');
+            } else {
+                console.error('❌ verify-file-input element not found');
+            }
+
+            // Identify file input
+            const identifyInput = document.getElementById('identify-file-input');
+            if (identifyInput) {
+                identifyInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        console.log('📁 Identify file selected:', file.name, file.type, file.size, 'bytes');
+                        
+                        // Try to load and convert to displayable format
+                        const img = new Image();
+                        const reader = new FileReader();
+                        
+                        reader.onload = (event) => {
+                            console.log('✅ Identify file read, data length:', event.target.result.length);
+                            
+                            // Try to load as image
+                            img.onload = () => {
+                                console.log('✅ Identify image decoded, size:', img.width, 'x', img.height);
+                                
+                                // Convert to PNG using canvas (browser-compatible format)
+                                const canvas = document.createElement('canvas');
+                                canvas.width = img.width;
+                                canvas.height = img.height;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(img, 0, 0);
+                                
+                                // Get PNG data URL
+                                const pngDataURL = canvas.toDataURL('image/png');
+                                console.log('✅ Converted to PNG, data length:', pngDataURL.length);
+                                
+                                // Display
+                                const display = document.getElementById('identify-display');
+                                display.innerHTML = 
+                                    `<img src="${pngDataURL}" style="max-width: 100%; max-height: 100%; object-fit: contain; display: block;" alt="Fingerprint">`;
+                                document.getElementById('identify-status').textContent = 'Fingerprint loaded ✓';
+                                document.getElementById('identify-status').className = 'scanner-status scanning';
+                            };
+                            
+                            img.onerror = () => {
+                                console.warn('⚠️ Browser cannot render this format, showing placeholder');
+                                const display = document.getElementById('identify-display');
+                                display.innerHTML = `<div style="color: var(--text-muted); text-align: center;">
+                                    <div style="font-size: 3rem;">📄</div>
+                                    <div>${file.name}</div>
+                                    <div style="font-size: 0.875rem; margin-top: 0.5rem;">Format: ${file.type || 'unknown'}</div>
+                                    <div style="font-size: 0.875rem;">File will be processed on server</div>
+                                </div>`;
+                                document.getElementById('identify-status').textContent = 'File loaded (preview unavailable)';
+                                document.getElementById('identify-status').className = 'scanner-status scanning';
+                            };
+                            
+                            img.src = event.target.result;
+                        };
+                        
+                        reader.onerror = (error) => {
+                            console.error('❌ Error reading identify file:', error);
+                        };
+                        
+                        reader.readAsDataURL(file);
+                    }
+                });
+                console.log('✅ Identify file input listener attached');
+            } else {
+                console.error('❌ identify-file-input element not found');
+            }
+        }
+
+        // ====================================================================
+        // STATISTICS
+        // ====================================================================
+
+        async function loadStats() {
+            try {
+                const stats = await BiometricAPI.getStats();
+                document.getElementById('stat-users').textContent = stats.num_users;
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+
+        // ====================================================================
+        // USERS LIST
+        // ====================================================================
+
+        async function refreshUsersList() {
+            BiometricAPI.showLoading('Loading users...');
+            
+            try {
+                const data = await BiometricAPI.getUsers();
+                const users = data.users || [];
+                
+                const tbody = document.getElementById('users-tbody');
+                
+                if (users.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                                <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
+                                <div>No users enrolled yet.</div>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    tbody.innerHTML = users.map(user => `
+                        <tr>
+                            <td><strong>${user.user_id}</strong></td>
+                            <td>${user.nome}</td>
+                            <td>${BiometricAPI.formatQuality(user.quality)}</td>
+                            <td>${BiometricAPI.formatTimestamp(user.created_at)}</td>
+                        </tr>
+                    `).join('');
+                }
+                
+                document.getElementById('user-count-badge').textContent = 
+                    `${users.length} user${users.length !== 1 ? 's' : ''}`;
+                
+                // Refresh stats
+                await loadStats();
+                
+            } catch (error) {
+                console.error('Failed to load users:', error);
+                BiometricAPI.showAlert('alert-container', 'Failed to load users: ' + error.message, 'danger');
+            } finally {
+                BiometricAPI.hideLoading();
+            }
+        }
+
+        // ====================================================================
+        // VERIFICATION (1:1)
+        // ====================================================================
+
+        async function performVerification() {
+            const userId = document.getElementById('verify-user-id').value.trim();
+            const file = document.getElementById('verify-file-input').files[0];
+            
+            if (!userId) {
+                BiometricAPI.showAlert('alert-container', 'Please enter a user ID', 'warning');
+                return;
+            }
+            
+            if (!file) {
+                BiometricAPI.showAlert('alert-container', 'Please upload a fingerprint image', 'warning');
+                return;
+            }
+            
+            // Update status
+            document.getElementById('verify-status').textContent = 'Processing...';
+            document.getElementById('verify-status').className = 'scanner-status scanning pulse';
+            
+            BiometricAPI.showLoading('🔍 Extracting features and verifying...');
+            
+            try {
+                // Send file directly (not base64)
+                const result = await BiometricAPI.verifyFingerprint(userId, file);
+                
+                const resultDiv = document.getElementById('verify-result');
+                
+                if (result.match) {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success fade-in">
+                            <span style="font-size: 2rem;">✓</span>
+                            <div>
+                                <strong>VERIFIED!</strong><br>
+                                User: ${userId}<br>
+                                Combined Score: ${(result.score * 100).toFixed(1)}%<br>
+                                Hash: ${(result.hash_score * 100).toFixed(1)}% | Geometric: ${(result.geometric_score * 100).toFixed(1)}%<br>
+                                Threshold: ${(result.threshold * 100).toFixed(0)}%<br>
+                                Matched minutiae: ${result.num_matched}
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('verify-status').textContent = 'Verified ✓';
+                    document.getElementById('verify-status').className = 'scanner-status success';
+                    
+                    verificationCount++;
+                    document.getElementById('stat-verifications').textContent = verificationCount;
+                    
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger fade-in">
+                            <span style="font-size: 2rem;">✗</span>
+                            <div>
+                                <strong>NOT VERIFIED</strong><br>
+                                Score: ${(result.score * 100).toFixed(1)}%<br>
+                                Threshold: ${(result.threshold * 100).toFixed(0)}%
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('verify-status').textContent = 'Verification failed';
+                    document.getElementById('verify-status').className = 'scanner-status failed';
+                }
+                
+                // Log activity
+                logActivity(`🔍 Verification: ${userId} - ${result.match ? '✓ VERIFIED' : '✗ FAILED'} (${(result.score * 100).toFixed(1)}%)`);
+                
+            } catch (error) {
+                console.error('Verification failed:', error);
+                
+                const resultDiv = document.getElementById('verify-result');
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger fade-in">
+                        <span>✗</span>
+                        <span>Verification failed: ${error.message}</span>
+                    </div>
+                `;
+                
+                document.getElementById('verify-status').textContent = 'Error';
+                document.getElementById('verify-status').className = 'scanner-status failed';
+                
+                BiometricAPI.showAlert('alert-container', 'Verification failed: ' + error.message, 'danger');
+                
+            } finally {
+                BiometricAPI.hideLoading();
+            }
+        }
+
+        // ====================================================================
+        // IDENTIFICATION (1:N)
+        // ====================================================================
+
+        async function performIdentification() {
+            const file = document.getElementById('identify-file-input').files[0];
+            
+            if (!file) {
+                BiometricAPI.showAlert('alert-container', 'Please upload a fingerprint image', 'warning');
+                return;
+            }
+            
+            // Update status
+            document.getElementById('identify-status').textContent = 'Processing...';
+            document.getElementById('identify-status').className = 'scanner-status scanning pulse';
+            
+            BiometricAPI.showLoading('🎯 Extracting features and searching database...');
+            
+            try {
+                // Send file directly (not base64)
+                const result = await BiometricAPI.identifyFingerprint(file);
+                
+                const resultDiv = document.getElementById('identify-result');
+                
+                if (result.identified) {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success fade-in">
+                            <span style="font-size: 2rem;">✓</span>
+                            <div>
+                                <strong>IDENTIFIED!</strong><br>
+                                User ID: ${result.best_match_id}<br>
+                                Score: ${(result.best_score * 100).toFixed(1)}%<br>
+                                Candidates searched: ${result.matches ? result.matches.length : 0}
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('identify-status').textContent = `Identified: ${result.best_match_id}`;
+                    document.getElementById('identify-status').className = 'scanner-status success';
+                    
+                    identificationCount++;
+                    document.getElementById('stat-identifications').textContent = identificationCount;
+                    
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger fade-in">
+                            <span style="font-size: 2rem;">✗</span>
+                            <div>
+                                <strong>NOT IDENTIFIED</strong><br>
+                                No match found in database<br>
+                                Searched ${result.matches ? result.matches.length : 0} candidate(s)
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('identify-status').textContent = 'Not identified';
+                    document.getElementById('identify-status').className = 'scanner-status failed';
+                }
+                
+                // Log activity
+                logActivity(`🎯 Identification: ${result.identified ? `✓ ${result.best_match_id}` : '✗ Not found'} - ${result.identified ? (result.best_score * 100).toFixed(1) : '0.0'}%`);
+                
+            } catch (error) {
+                console.error('Identification failed:', error);
+                
+                const resultDiv = document.getElementById('identify-result');
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger fade-in">
+                        <span>✗</span>
+                        <span>Identification failed: ${error.message}</span>
+                    </div>
+                `;
+                
+                document.getElementById('identify-status').textContent = 'Error';
+                document.getElementById('identify-status').className = 'scanner-status failed';
+                
+                BiometricAPI.showAlert('alert-container', 'Identification failed: ' + error.message, 'danger');
+                
+            } finally {
+                BiometricAPI.hideLoading();
+            }
+        }
+
+        function logActivity(message) {
+            const log = document.getElementById('activity-log');
+            
+            if (log.children.length === 1 && log.children[0].textContent.includes('Waiting')) {
+                log.innerHTML = '';
+            }
+            
+            const entry = document.createElement('div');
+            entry.className = 'alert alert-info fade-in';
+            entry.style.marginBottom = '0.5rem';
+            entry.innerHTML = `
+                <span>📡</span>
+                <div>
+                    <div>${message}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                        ${new Date().toLocaleTimeString()}
+                    </div>
+                </div>
+            `;
+            
+            log.insertBefore(entry, log.firstChild);
+            
+            // Keep only last 20 entries
+            while (log.children.length > 20) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        function clearActivityLog() {
+            document.getElementById('activity-log').innerHTML = `
+                <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                    Waiting for activity...
+                </div>
+            `;
+        }
+
+        // ====================================================================
+        // START
+        // ====================================================================
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
+
