@@ -82,8 +82,8 @@ The system implements a modular fingerprint processing pipeline:
 
 ```bash
 # Clone the repository
-git clone https://github.com/DanielB-sec/TB_SB.git
-cd biometric-system
+git clone https://github.com/DanielB-sec/Supermatcher.git
+cd Supermatcher
 
 # Install dependencies
 pip install -r requirements.txt
