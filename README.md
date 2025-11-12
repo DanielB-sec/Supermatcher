@@ -82,7 +82,7 @@ The system implements a modular fingerprint processing pipeline:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/biometric-system.git
+git clone https://github.com/DanielB-sec/TB_SB.git
 cd biometric-system
 
 # Install dependencies
