@@ -1,0 +1,729 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>supermatcher_v1_0 &mdash; Supermatcher 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Supermatcher
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Supermatcher</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Module code</a></li>
+      <li class="breadcrumb-item active">supermatcher_v1_0</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for supermatcher_v1_0</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Supermatcher v1.0 - Hybrid Fingerprint Identification/Authentication Pipeline</span>
+
+<span class="sd">This module implements a modular, end-to-end pipeline for fingerprint identification and authentication.</span>
+
+<span class="sd">ARCHITECTURE:</span>
+<span class="sd">    - Modular design with 6 specialized modules:</span>
+<span class="sd">        * config.py: Centralized configuration</span>
+<span class="sd">        * dataclasses.py: Core data structures</span>
+<span class="sd">        * preprocessing.py: Image processing (normalization, segmentation, diffusion)</span>
+<span class="sd">        * extractor.py: Feature extraction (orientation, frequency, minutiae, pores)</span>
+<span class="sd">        * template_creation.py: Hasher, fusion, quality assessment, I/O</span>
+<span class="sd">        * matching.py: Two-stage identification + verification</span>
+
+<span class="sd">PIPELINE OVERVIEW:</span>
+<span class="sd">    1. Preprocessing: Normalization → Segmentation → Coherence Diffusion</span>
+<span class="sd">    2. Extraction: Orientation/Frequency → Log-Gabor Enhancement → Minutiae → Pores</span>
+<span class="sd">    3. Template Creation: Feature Vector → Quality Assessment → Protected Hash</span>
+<span class="sd">    4. Matching: Hash-based (Stage 1) → Geometric Reranking (Stage 2)</span>
+
+<span class="sd">This script provides a command-line interface for enrolling, identifying, and verifying fingerprints using the above pipeline.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="c1"># Import all modules</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.config</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">HASH_FEATURE_DIM</span><span class="p">,</span> <span class="n">HASH_PROJECTION_DIM</span><span class="p">,</span> <span class="n">HASH_KEY</span><span class="p">,</span> <span class="n">HASH_COUNT</span><span class="p">,</span>
+    <span class="n">DEFAULT_QUALITY_THRESHOLD</span><span class="p">,</span> <span class="n">DEFAULT_TEMPLATE_PATH</span><span class="p">,</span>
+    <span class="n">IMAGE_EXTENSIONS</span><span class="p">,</span> <span class="n">PCORES_AFFINITY</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">FingerprintTemplate</span><span class="p">,</span> <span class="n">FusionSettings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.preprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">load_grayscale_image</span><span class="p">,</span> <span class="n">normalise_image</span><span class="p">,</span> <span class="n">block_variance_segmentation</span><span class="p">,</span> <span class="n">coherence_diffusion</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.extractor</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">estimate_orientation_and_frequency</span><span class="p">,</span> <span class="n">apply_log_gabor_enhancement</span><span class="p">,</span>
+    <span class="n">binarise_and_thin</span><span class="p">,</span> <span class="n">extract_minutiae</span><span class="p">,</span> <span class="n">validate_minutiae</span><span class="p">,</span> <span class="n">detect_pores</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.template_creation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">CancelableHasher</span><span class="p">,</span> <span class="n">evaluate_quality</span><span class="p">,</span> <span class="n">build_feature_vector</span><span class="p">,</span>
+    <span class="n">save_template</span><span class="p">,</span> <span class="n">load_templates_from_directory</span><span class="p">,</span> <span class="n">fuse_identity_templates</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.matching</span><span class="w"> </span><span class="kn">import</span> <span class="n">FingerprintMatcher</span>
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># CPU Affinity Management</span>
+
+
+<div class="viewcode-block" id="set_cpu_affinity">
+<a class="viewcode-back" href="../supermatcher_v1_0.html#supermatcher_v1_0.set_cpu_affinity">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">set_cpu_affinity</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Set CPU affinity to P-cores only, if configured in the system and available.</span>
+
+<span class="sd">    This function restricts the process to run only on performance cores (P-cores),</span>
+<span class="sd">    which can improve performance on hybrid CPU architectures.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">PCORES_AFFINITY</span><span class="p">:</span>
+        <span class="k">return</span>
+    
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">os</span><span class="p">,</span> <span class="s1">&#39;sched_setaffinity&#39;</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">sched_setaffinity</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">PCORES_AFFINITY</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[affinity] Set to P-cores: </span><span class="si">{</span><span class="n">PCORES_AFFINITY</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[affinity] Could not set affinity: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># FingerprintPipeline: End-to-End Processing</span>
+
+
+<div class="viewcode-block" id="FingerprintPipeline">
+<a class="viewcode-back" href="../supermatcher_v1_0.html#supermatcher_v1_0.FingerprintPipeline">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FingerprintPipeline</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    End-to-end fingerprint processing pipeline for biometric template creation.</span>
+
+<span class="sd">    This class processes a raw fingerprint image through all stages:</span>
+<span class="sd">        1. Preprocessing (load → normalize → segment → diffuse)</span>
+<span class="sd">        2. Feature extraction (orientation/frequency → Log-Gabor → minutiae → pores)</span>
+<span class="sd">        3. Template creation (feature vector → quality assessment → protected hash)</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        hasher (CancelableHasher): Instance for protected template generation.</span>
+<span class="sd">        include_level3 (bool): Whether to extract Level-3 features (pores).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">hasher</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">CancelableHasher</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">include_level3</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize pipeline.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            hasher: CancelableHasher instance (creates default if None)</span>
+<span class="sd">            include_level3: Enable Level-3 feature extraction (default False)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">hasher</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">hasher</span> <span class="o">=</span> <span class="n">CancelableHasher</span><span class="p">(</span>
+                <span class="n">feature_dim</span><span class="o">=</span><span class="n">HASH_FEATURE_DIM</span><span class="p">,</span>
+                <span class="n">projection_dim</span><span class="o">=</span><span class="n">HASH_PROJECTION_DIM</span><span class="p">,</span>
+                <span class="n">key</span><span class="o">=</span><span class="n">HASH_KEY</span><span class="p">,</span>
+                <span class="n">hash_count</span><span class="o">=</span><span class="n">HASH_COUNT</span>
+            <span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">hasher</span> <span class="o">=</span> <span class="n">hasher</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">include_level3</span> <span class="o">=</span> <span class="n">include_level3</span>
+    
+<div class="viewcode-block" id="FingerprintPipeline.process">
+<a class="viewcode-back" href="../supermatcher_v1_0.html#supermatcher_v1_0.FingerprintPipeline.process">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">process</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">image_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">identifier</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FingerprintTemplate</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Process a fingerprint image into a biometric template.</span>
+
+<span class="sd">        This method performs the complete pipeline: preprocessing, feature extraction,</span>
+<span class="sd">        and template creation, resulting in a protected fingerprint template.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            image_path (Path): Path to the fingerprint image file.</span>
+<span class="sd">            identifier (str): User identifier for the template.</span>
+<span class="sd">            verbose (bool, optional): If True, print processing steps. Defaults to False.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            FingerprintTemplate: The generated template with protected hash, minutiae, and quality score.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            FileNotFoundError: If the image_path does not exist.</span>
+<span class="sd">            ValueError: If image processing fails.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">image_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Image not found: </span><span class="si">{</span><span class="n">image_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[process] Processing </span><span class="si">{</span><span class="n">image_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Phase 1: Preprocessing</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">load_grayscale_image</span><span class="p">(</span><span class="n">image_path</span><span class="p">)</span>
+        <span class="n">normalised</span> <span class="o">=</span> <span class="n">normalise_image</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">block_variance_segmentation</span><span class="p">(</span><span class="n">normalised</span><span class="p">)</span>
+        <span class="n">diffused</span> <span class="o">=</span> <span class="n">coherence_diffusion</span><span class="p">(</span><span class="n">normalised</span><span class="p">,</span> <span class="n">mask</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[process]   Preprocessing complete (mask coverage: </span><span class="si">{</span><span class="n">mask</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Phase 2: Feature extraction</span>
+        <span class="n">orientation</span><span class="p">,</span> <span class="n">frequency</span> <span class="o">=</span> <span class="n">estimate_orientation_and_frequency</span><span class="p">(</span><span class="n">diffused</span><span class="p">,</span> <span class="n">mask</span><span class="p">)</span>
+        <span class="n">enhanced</span> <span class="o">=</span> <span class="n">apply_log_gabor_enhancement</span><span class="p">(</span><span class="n">diffused</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">frequency</span><span class="p">)</span>
+        <span class="n">binary</span><span class="p">,</span> <span class="n">skeleton</span> <span class="o">=</span> <span class="n">binarise_and_thin</span><span class="p">(</span><span class="n">enhanced</span><span class="p">,</span> <span class="n">mask</span><span class="p">)</span>
+        
+        <span class="n">minutiae</span> <span class="o">=</span> <span class="n">extract_minutiae</span><span class="p">(</span><span class="n">skeleton</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">orientation</span><span class="p">)</span>
+        <span class="n">minutiae</span> <span class="o">=</span> <span class="n">validate_minutiae</span><span class="p">(</span><span class="n">minutiae</span><span class="p">,</span> <span class="n">skeleton</span><span class="p">,</span> <span class="n">mask</span><span class="p">)</span>
+        
+        <span class="n">level3_features</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_level3</span><span class="p">:</span>
+            <span class="n">level3_features</span> <span class="o">=</span> <span class="n">detect_pores</span><span class="p">(</span><span class="n">enhanced</span><span class="p">,</span> <span class="n">mask</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[process]   Extracted </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">minutiae</span><span class="p">)</span><span class="si">}</span><span class="s2"> minutiae&quot;</span> <span class="o">+</span>
+                  <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;, </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">level3_features</span><span class="p">)</span><span class="si">}</span><span class="s2"> pores&quot;</span> <span class="k">if</span> <span class="n">level3_features</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">))</span>
+        
+        <span class="c1"># Phase 3: Template creation</span>
+        <span class="n">quality_score</span> <span class="o">=</span> <span class="n">evaluate_quality</span><span class="p">(</span>
+            <span class="n">minutiae</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">frequency</span><span class="p">,</span> <span class="n">skeleton</span><span class="p">,</span> <span class="n">enhanced</span><span class="p">,</span> <span class="n">diffused</span><span class="p">,</span>
+            <span class="n">level3</span><span class="o">=</span><span class="n">level3_features</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_level3</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        
+        <span class="n">feature_vector</span> <span class="o">=</span> <span class="n">build_feature_vector</span><span class="p">(</span>
+            <span class="n">minutiae</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">frequency</span><span class="p">,</span> <span class="n">skeleton</span><span class="p">,</span> <span class="n">enhanced</span><span class="p">,</span> <span class="n">diffused</span><span class="p">,</span>
+            <span class="n">level3</span><span class="o">=</span><span class="n">level3_features</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_level3</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">use_consensus_weighting</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+        
+        <span class="n">protected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hasher</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">feature_vector</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[process]   Quality: </span><span class="si">{</span><span class="n">quality_score</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">FingerprintTemplate</span><span class="p">(</span>
+            <span class="n">identifier</span><span class="o">=</span><span class="n">identifier</span><span class="p">,</span>
+            <span class="n">image_path</span><span class="o">=</span><span class="n">image_path</span><span class="p">,</span>
+            <span class="n">protected</span><span class="o">=</span><span class="n">protected</span><span class="p">,</span>
+            <span class="n">bit_length</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hasher</span><span class="o">.</span><span class="n">bit_length</span><span class="p">,</span>
+            <span class="n">quality</span><span class="o">=</span><span class="n">quality_score</span><span class="p">,</span>
+            <span class="n">raw_features</span><span class="o">=</span><span class="n">feature_vector</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="n">minutiae</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">minutiae</span><span class="p">),</span>
+            <span class="n">consensus_score</span><span class="o">=</span><span class="mf">1.0</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># High-Level API: Enroll, Identify, Verify</span>
+
+
+<div class="viewcode-block" id="enroll">
+<a class="viewcode-back" href="../supermatcher_v1_0.html#supermatcher_v1_0.enroll">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">enroll</span><span class="p">(</span>
+    <span class="n">image_paths</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Path</span><span class="p">],</span>
+    <span class="n">identifier</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">output_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">fusion_settings</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">FusionSettings</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">quality_threshold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">include_level3</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">FingerprintTemplate</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Enroll a user by processing multiple fingerprint samples.</span>
+<span class="sd">    </span>
+<span class="sd">    This function processes multiple fingerprint images for a single user, filters them by quality,</span>
+<span class="sd">    optionally fuses multiple samples into a master template, and saves the templates to disk.</span>
+
+<span class="sd">    Workflow:</span>
+<span class="sd">        1. Process all images for the given identifier.</span>
+<span class="sd">        2. Filter by quality threshold.</span>
+<span class="sd">        3. Optionally fuse multiple samples into a master template.</span>
+<span class="sd">        4. Save templates to the output directory.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        image_paths (Sequence[Path]): List of fingerprint image paths for the same user.</span>
+<span class="sd">        identifier (str): User identifier (e.g., &quot;101&quot;, &quot;john_doe&quot;).</span>
+<span class="sd">        output_dir (Optional[Path], optional): Directory to save templates. Uses default if None.</span>
+<span class="sd">        fusion_settings (Optional[FusionSettings], optional): Fusion configuration. None means no fusion.</span>
+<span class="sd">        quality_threshold (Optional[float], optional): Minimum quality to accept. Uses default if None.</span>
+<span class="sd">        include_level3 (bool, optional): Extract Level-3 features. Defaults to False.</span>
+<span class="sd">        verbose (bool, optional): Print progress messages. Defaults to True.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        List[FingerprintTemplate]: List of FingerprintTemplate objects (fused + raw if keep_raw=True).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">output_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">output_dir</span> <span class="o">=</span> <span class="n">DEFAULT_TEMPLATE_PATH</span>
+    
+    <span class="k">if</span> <span class="n">quality_threshold</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">quality_threshold</span> <span class="o">=</span> <span class="n">DEFAULT_QUALITY_THRESHOLD</span>
+    
+    <span class="n">output_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_dir</span><span class="p">)</span>
+    <span class="n">output_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">[enroll] Enrolling user &#39;</span><span class="si">{</span><span class="n">identifier</span><span class="si">}</span><span class="s2">&#39; with </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">image_paths</span><span class="p">)</span><span class="si">}</span><span class="s2"> samples&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Create pipeline</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">FingerprintPipeline</span><span class="p">(</span><span class="n">include_level3</span><span class="o">=</span><span class="n">include_level3</span><span class="p">)</span>
+    
+    <span class="c1"># Process all images</span>
+    <span class="n">templates</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">FingerprintTemplate</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">image_path</span> <span class="ow">in</span> <span class="n">image_paths</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">template</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">image_path</span><span class="p">,</span> <span class="n">identifier</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">template</span><span class="o">.</span><span class="n">quality</span> <span class="o">&gt;=</span> <span class="n">quality_threshold</span><span class="p">:</span>
+                <span class="n">templates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">template</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[enroll]   ✓ </span><span class="si">{</span><span class="n">image_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: quality=</span><span class="si">{</span><span class="n">template</span><span class="o">.</span><span class="n">quality</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[enroll]   ✗ </span><span class="si">{</span><span class="n">image_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: quality=</span><span class="si">{</span><span class="n">template</span><span class="o">.</span><span class="n">quality</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> &quot;</span>
+                          <span class="sa">f</span><span class="s2">&quot;(below threshold </span><span class="si">{</span><span class="n">quality_threshold</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[enroll]   ERROR processing </span><span class="si">{</span><span class="n">image_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">templates</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[enroll] No valid templates for &#39;</span><span class="si">{</span><span class="n">identifier</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[]</span>
+    
+    <span class="c1"># Apply fusion if enabled</span>
+    <span class="k">if</span> <span class="n">fusion_settings</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">fusion_settings</span><span class="o">.</span><span class="n">enabled</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">templates</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[enroll] Fusing </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">templates</span><span class="p">)</span><span class="si">}</span><span class="s2"> templates...&quot;</span><span class="p">)</span>
+        
+        <span class="n">fused_templates</span> <span class="o">=</span> <span class="n">fuse_identity_templates</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">hasher</span><span class="p">,</span> <span class="n">fusion_settings</span><span class="p">)</span>
+        <span class="n">templates</span> <span class="o">=</span> <span class="n">fused_templates</span>
+        
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="n">fused_count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">templates</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">fused</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[enroll] Created </span><span class="si">{</span><span class="n">fused_count</span><span class="si">}</span><span class="s2"> fused template(s)&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Save templates</span>
+    <span class="n">saved_count</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">template</span> <span class="ow">in</span> <span class="n">templates</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">save_template</span><span class="p">(</span><span class="n">template</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">saved_count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[enroll] ERROR saving template: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[enroll] Saved </span><span class="si">{</span><span class="n">saved_count</span><span class="si">}</span><span class="s2"> template(s) to </span><span class="si">{</span><span class="n">output_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">templates</span></div>
+
+
+
+<div class="viewcode-block" id="identify">
+<a class="viewcode-back" href="../supermatcher_v1_0.html#supermatcher_v1_0.identify">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">identify</span><span class="p">(</span>
+    <span class="n">probe_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">gallery_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">use_geometric_reranking</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">quality_threshold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">prefer_fused</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_level3</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Identify a probe fingerprint against a gallery (1:N matching).</span>
+<span class="sd">    </span>
+<span class="sd">    This function performs identification by matching a probe fingerprint against all templates</span>
+<span class="sd">    in the gallery using a two-stage matching process with optional geometric reranking.</span>
+
+<span class="sd">    Workflow:</span>
+<span class="sd">        1. Process the probe image.</span>
+<span class="sd">        2. Load gallery templates.</span>
+<span class="sd">        3. Use FingerprintMatcher.identify() with geometric reranking.</span>
+<span class="sd">        4. Return top-K matches.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        probe_path (Path): Path to the probe fingerprint image.</span>
+<span class="sd">        gallery_dir (Optional[Path], optional): Directory containing gallery templates. Uses default if None.</span>
+<span class="sd">        top_k (int, optional): Number of top matches to return. Defaults to 5.</span>
+<span class="sd">        use_geometric_reranking (bool, optional): Enable Stage 2 geometric matching. Defaults to True.</span>
+<span class="sd">        quality_threshold (Optional[float], optional): Minimum probe quality. Uses default if None.</span>
+<span class="sd">        prefer_fused (bool, optional): Prefer fused templates over raw. Defaults to True.</span>
+<span class="sd">        include_level3 (bool, optional): Extract Level-3 features. Defaults to False.</span>
+<span class="sd">        verbose (bool, optional): Print matching details. Defaults to True.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        List[Tuple[str, float]]: List of (identifier, score) tuples sorted by score (descending).</span>
+<span class="sd">        </span>
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If probe quality is below threshold.</span>
+<span class="sd">        FileNotFoundError: If gallery_dir contains no templates.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">gallery_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">gallery_dir</span> <span class="o">=</span> <span class="n">DEFAULT_TEMPLATE_PATH</span>
+    
+    <span class="k">if</span> <span class="n">quality_threshold</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">quality_threshold</span> <span class="o">=</span> <span class="n">DEFAULT_QUALITY_THRESHOLD</span>
+    
+    <span class="n">gallery_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">gallery_dir</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">[identify] Processing probe: </span><span class="si">{</span><span class="n">probe_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Process probe</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">FingerprintPipeline</span><span class="p">(</span><span class="n">include_level3</span><span class="o">=</span><span class="n">include_level3</span><span class="p">)</span>
+    <span class="n">probe</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">probe_path</span><span class="p">,</span> <span class="n">identifier</span><span class="o">=</span><span class="n">probe_path</span><span class="o">.</span><span class="n">stem</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">probe</span><span class="o">.</span><span class="n">quality</span> <span class="o">&lt;</span> <span class="n">quality_threshold</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Probe quality </span><span class="si">{</span><span class="n">probe</span><span class="o">.</span><span class="n">quality</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> is below threshold </span><span class="si">{</span><span class="n">quality_threshold</span><span class="si">}</span><span class="s2">. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Please recapture the fingerprint.&quot;</span>
+        <span class="p">)</span>
+    
+    <span class="c1"># Load gallery</span>
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[identify] Loading gallery from </span><span class="si">{</span><span class="n">gallery_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+    <span class="n">gallery_templates</span> <span class="o">=</span> <span class="n">load_templates_from_directory</span><span class="p">(</span>
+        <span class="n">gallery_dir</span><span class="p">,</span>
+        <span class="n">prefer_fused</span><span class="o">=</span><span class="n">prefer_fused</span><span class="p">,</span>
+        <span class="n">include_raw_when_fused</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span>
+    
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">gallery_templates</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No templates found in </span><span class="si">{</span><span class="n">gallery_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[identify] Gallery: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">gallery_templates</span><span class="p">)</span><span class="si">}</span><span class="s2"> templates&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Create matcher and identify</span>
+    <span class="n">matcher</span> <span class="o">=</span> <span class="n">FingerprintMatcher</span><span class="p">(</span><span class="n">gallery_templates</span><span class="p">,</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">hasher</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">matcher</span><span class="o">.</span><span class="n">identify</span><span class="p">(</span>
+        <span class="n">probe</span><span class="p">,</span>
+        <span class="n">top_k</span><span class="o">=</span><span class="n">top_k</span><span class="p">,</span>
+        <span class="n">use_geometric_reranking</span><span class="o">=</span><span class="n">use_geometric_reranking</span><span class="p">,</span>
+        <span class="n">min_probe_quality</span><span class="o">=</span><span class="n">quality_threshold</span>
+    <span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">[identify] Top-</span><span class="si">{</span><span class="nb">min</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">),</span><span class="w"> </span><span class="n">top_k</span><span class="p">)</span><span class="si">}</span><span class="s2"> matches:&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">identity</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">results</span><span class="p">[:</span><span class="n">top_k</span><span class="p">],</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">. </span><span class="si">{</span><span class="n">identity</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">score</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">results</span></div>
+
+
+
+<div class="viewcode-block" id="verify">
+<a class="viewcode-back" href="../supermatcher_v1_0.html#supermatcher_v1_0.verify">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">verify</span><span class="p">(</span>
+    <span class="n">probe_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">claimed_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">gallery_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">quality_threshold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">use_adaptive_threshold</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_level3</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Verify a probe fingerprint against a claimed identity (1:1 matching).</span>
+<span class="sd">    </span>
+<span class="sd">    This function performs verification by matching a probe fingerprint against templates</span>
+<span class="sd">    of a specific claimed identity using adaptive thresholding.</span>
+
+<span class="sd">    Workflow:</span>
+<span class="sd">        1. Process the probe image.</span>
+<span class="sd">        2. Load gallery templates for the claimed identity.</span>
+<span class="sd">        3. Use FingerprintMatcher.verify() with adaptive threshold.</span>
+<span class="sd">        4. Return (is_match, score).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        probe_path (Path): Path to the probe fingerprint image.</span>
+<span class="sd">        claimed_id (str): Claimed user identifier.</span>
+<span class="sd">        gallery_dir (Optional[Path], optional): Directory containing gallery templates. Uses default if None.</span>
+<span class="sd">        quality_threshold (Optional[float], optional): Minimum probe quality. Uses default if None.</span>
+<span class="sd">        use_adaptive_threshold (bool, optional): Use quality-based threshold. Defaults to True.</span>
+<span class="sd">        include_level3 (bool, optional): Extract Level-3 features. Defaults to False.</span>
+<span class="sd">        verbose (bool, optional): Print verification details. Defaults to True.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        Tuple[bool, float]: Tuple of (is_match, score):</span>
+<span class="sd">            - is_match: True if score ≥ threshold.</span>
+<span class="sd">            - score: Best similarity score.</span>
+<span class="sd">        </span>
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If probe quality is below threshold or no templates for claimed_id.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">gallery_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">gallery_dir</span> <span class="o">=</span> <span class="n">DEFAULT_TEMPLATE_PATH</span>
+    
+    <span class="k">if</span> <span class="n">quality_threshold</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">quality_threshold</span> <span class="o">=</span> <span class="n">DEFAULT_QUALITY_THRESHOLD</span>
+    
+    <span class="n">gallery_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">gallery_dir</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">[verify] Processing probe: </span><span class="si">{</span><span class="n">probe_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[verify] Claimed identity: </span><span class="si">{</span><span class="n">claimed_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Process probe</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">FingerprintPipeline</span><span class="p">(</span><span class="n">include_level3</span><span class="o">=</span><span class="n">include_level3</span><span class="p">)</span>
+    <span class="n">probe</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">probe_path</span><span class="p">,</span> <span class="n">identifier</span><span class="o">=</span><span class="n">probe_path</span><span class="o">.</span><span class="n">stem</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">probe</span><span class="o">.</span><span class="n">quality</span> <span class="o">&lt;</span> <span class="n">quality_threshold</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Probe quality </span><span class="si">{</span><span class="n">probe</span><span class="o">.</span><span class="n">quality</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> is below threshold </span><span class="si">{</span><span class="n">quality_threshold</span><span class="si">}</span><span class="s2">. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Please recapture the fingerprint.&quot;</span>
+        <span class="p">)</span>
+    
+    <span class="c1"># Load gallery</span>
+    <span class="n">gallery_templates</span> <span class="o">=</span> <span class="n">load_templates_from_directory</span><span class="p">(</span><span class="n">gallery_dir</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">gallery_templates</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No templates found in </span><span class="si">{</span><span class="n">gallery_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Create matcher and verify</span>
+    <span class="n">matcher</span> <span class="o">=</span> <span class="n">FingerprintMatcher</span><span class="p">(</span><span class="n">gallery_templates</span><span class="p">,</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">hasher</span><span class="p">)</span>
+    <span class="n">is_match</span><span class="p">,</span> <span class="n">score</span> <span class="o">=</span> <span class="n">matcher</span><span class="o">.</span><span class="n">verify</span><span class="p">(</span>
+        <span class="n">probe</span><span class="p">,</span>
+        <span class="n">claimed_id</span><span class="p">,</span>
+        <span class="n">use_adaptive_threshold</span><span class="o">=</span><span class="n">use_adaptive_threshold</span>
+    <span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">[verify] Result: </span><span class="si">{</span><span class="s1">&#39;✓ MATCH&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">is_match</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;✗ NO MATCH&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[verify] Score: </span><span class="si">{</span><span class="n">score</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">is_match</span><span class="p">,</span> <span class="n">score</span></div>
+
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Utility Functions</span>
+
+
+<div class="viewcode-block" id="enumerate_database">
+<a class="viewcode-back" href="../supermatcher_v1_0.html#supermatcher_v1_0.enumerate_database">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">enumerate_database</span><span class="p">(</span><span class="n">db_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Path</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    List all fingerprint images in a database directory.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        db_path (Path): Path to the fingerprint database directory.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        List[Path]: List of image file paths (sorted).</span>
+<span class="sd">        </span>
+<span class="sd">    Raises:</span>
+<span class="sd">        FileNotFoundError: If db_path doesn&#39;t exist or contains no images.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">db_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">db_path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Database directory not found: </span><span class="si">{</span><span class="n">db_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+    <span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">db_path</span><span class="o">.</span><span class="n">iterdir</span><span class="p">()</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">suffix</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">IMAGE_EXTENSIONS</span><span class="p">]</span>
+    
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">files</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No fingerprint images found in </span><span class="si">{</span><span class="n">db_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+    <span class="n">files</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">files</span></div>
+
+
+
+<div class="viewcode-block" id="infer_identity_from_filename">
+<a class="viewcode-back" href="../supermatcher_v1_0.html#supermatcher_v1_0.infer_identity_from_filename">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">infer_identity_from_filename</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Infer user identifier from filename (e.g., &quot;101_1.tif&quot; → &quot;101&quot;).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        path (Path): Image file path.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        str: User identifier (string before first underscore, or full stem if no underscore).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">stem</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">stem</span>
+    <span class="k">if</span> <span class="s2">&quot;_&quot;</span> <span class="ow">in</span> <span class="n">stem</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">stem</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">stem</span></div>
+
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Main Entry Point</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
+    
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Supermatcher v1.0 - Hybrid Fingerprint Identification/Authentication&quot;</span>
+    <span class="p">)</span>
+    
+    <span class="n">subparsers</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">add_subparsers</span><span class="p">(</span><span class="n">dest</span><span class="o">=</span><span class="s2">&quot;command&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Command to execute&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Enroll command</span>
+    <span class="n">enroll_parser</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;enroll&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Enroll user fingerprints&quot;</span><span class="p">)</span>
+    <span class="n">enroll_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;identifier&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;User identifier&quot;</span><span class="p">)</span>
+    <span class="n">enroll_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;images&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">Path</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="s2">&quot;+&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Fingerprint images&quot;</span><span class="p">)</span>
+    <span class="n">enroll_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">Path</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output directory&quot;</span><span class="p">)</span>
+    <span class="n">enroll_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--fusion&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Enable template fusion&quot;</span><span class="p">)</span>
+    <span class="n">enroll_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--level3&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Extract Level-3 features&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Identify command</span>
+    <span class="n">identify_parser</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;identify&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Identify probe (1:N)&quot;</span><span class="p">)</span>
+    <span class="n">identify_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;probe&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">Path</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Probe fingerprint image&quot;</span><span class="p">)</span>
+    <span class="n">identify_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--gallery&quot;</span><span class="p">,</span> <span class="s2">&quot;-g&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">Path</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Gallery directory&quot;</span><span class="p">)</span>
+    <span class="n">identify_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--top-k&quot;</span><span class="p">,</span> <span class="s2">&quot;-k&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of top matches&quot;</span><span class="p">)</span>
+    <span class="n">identify_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--no-geometric&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Disable geometric reranking&quot;</span><span class="p">)</span>
+    <span class="n">identify_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--level3&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Extract Level-3 features&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Verify command</span>
+    <span class="n">verify_parser</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;verify&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Verify probe (1:1)&quot;</span><span class="p">)</span>
+    <span class="n">verify_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;probe&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">Path</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Probe fingerprint image&quot;</span><span class="p">)</span>
+    <span class="n">verify_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;claimed_id&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Claimed identity&quot;</span><span class="p">)</span>
+    <span class="n">verify_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--gallery&quot;</span><span class="p">,</span> <span class="s2">&quot;-g&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">Path</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Gallery directory&quot;</span><span class="p">)</span>
+    <span class="n">verify_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--level3&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Extract Level-3 features&quot;</span><span class="p">)</span>
+    
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+    
+    <span class="c1"># Set CPU affinity</span>
+    <span class="n">set_cpu_affinity</span><span class="p">()</span>
+    
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">command</span> <span class="o">==</span> <span class="s2">&quot;enroll&quot;</span><span class="p">:</span>
+        <span class="n">fusion_settings</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">fusion</span><span class="p">:</span>
+            <span class="n">fusion_settings</span> <span class="o">=</span> <span class="n">FusionSettings</span><span class="p">(</span>
+                <span class="n">enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">distance</span><span class="o">=</span><span class="mf">12.0</span><span class="p">,</span>
+                <span class="n">angle_deg</span><span class="o">=</span><span class="mf">20.0</span><span class="p">,</span>
+                <span class="n">min_consensus</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span>
+                <span class="n">keep_raw</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;optimal&quot;</span>
+            <span class="p">)</span>
+        
+        <span class="n">enroll</span><span class="p">(</span>
+            <span class="n">image_paths</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">images</span><span class="p">,</span>
+            <span class="n">identifier</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">identifier</span><span class="p">,</span>
+            <span class="n">output_dir</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span>
+            <span class="n">fusion_settings</span><span class="o">=</span><span class="n">fusion_settings</span><span class="p">,</span>
+            <span class="n">include_level3</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">level3</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+    
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">command</span> <span class="o">==</span> <span class="s2">&quot;identify&quot;</span><span class="p">:</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">identify</span><span class="p">(</span>
+            <span class="n">probe_path</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">probe</span><span class="p">,</span>
+            <span class="n">gallery_dir</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">gallery</span><span class="p">,</span>
+            <span class="n">top_k</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">top_k</span><span class="p">,</span>
+            <span class="n">use_geometric_reranking</span><span class="o">=</span><span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">no_geometric</span><span class="p">,</span>
+            <span class="n">include_level3</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">level3</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+    
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">command</span> <span class="o">==</span> <span class="s2">&quot;verify&quot;</span><span class="p">:</span>
+        <span class="n">is_match</span><span class="p">,</span> <span class="n">score</span> <span class="o">=</span> <span class="n">verify</span><span class="p">(</span>
+            <span class="n">probe_path</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">probe</span><span class="p">,</span>
+            <span class="n">claimed_id</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">claimed_id</span><span class="p">,</span>
+            <span class="n">gallery_dir</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">gallery</span><span class="p">,</span>
+            <span class="n">include_level3</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">level3</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+    
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">parser</span><span class="o">.</span><span class="n">print_help</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barreiros.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

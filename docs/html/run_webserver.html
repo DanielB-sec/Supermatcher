@@ -1,0 +1,165 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>run_webserver module &mdash; Supermatcher 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=8d563738"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="src" href="modules.html" />
+    <link rel="prev" title="Supermatcher documentation" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Supermatcher
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">run_webserver module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#run_webserver.first_time_setup"><code class="docutils literal notranslate"><span class="pre">first_time_setup()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#run_webserver.generate_self_signed_cert"><code class="docutils literal notranslate"><span class="pre">generate_self_signed_cert()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#run_webserver.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">src</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Supermatcher</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">run_webserver module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/run_webserver.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="run-webserver-module">
+<h1>run_webserver module<a class="headerlink" href="#run-webserver-module" title="Link to this heading"></a></h1>
+<p id="module-run_webserver">Run Webserver - Startup Script</p>
+<p>This script provides an interactive first-time setup for the Biometric Webserver and launches the server.
+It allows you to create initial admin and endpoint accounts, configure SSL, and start the webserver with the desired settings.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="run_webserver.first_time_setup">
+<span class="sig-prename descclassname"><span class="pre">run_webserver.</span></span><span class="sig-name descname"><span class="pre">first_time_setup</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/run_webserver.html#first_time_setup"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#run_webserver.first_time_setup" title="Link to this definition"></a></dt>
+<dd><p>Launches an interactive setup wizard for the first run of the Biometric Webserver.</p>
+<p>Prompts the user to create admin and endpoint accounts, set passwords, and choose SSL options.
+Initializes the database and creates the required users.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><dl class="simple">
+<dt>(use_ssl, port) where use_ssl is a boolean indicating if HTTPS should be used,</dt><dd><p>and port is the selected port number.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="run_webserver.generate_self_signed_cert">
+<span class="sig-prename descclassname"><span class="pre">run_webserver.</span></span><span class="sig-name descname"><span class="pre">generate_self_signed_cert</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/run_webserver.html#generate_self_signed_cert"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#run_webserver.generate_self_signed_cert" title="Link to this definition"></a></dt>
+<dd><p>Generates a self-signed SSL certificate and private key for HTTPS connections.</p>
+<p>The certificate and key are saved to the default SSL certificate directory as defined in the configuration.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><dl class="simple">
+<dt>(certfile, keyfile) where certfile is the path to the generated certificate file,</dt><dd><p>and keyfile is the path to the generated private key file.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="run_webserver.main">
+<span class="sig-prename descclassname"><span class="pre">run_webserver.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/run_webserver.html#main"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#run_webserver.main" title="Link to this definition"></a></dt>
+<dd><p>Main entry point for starting the Biometric Webserver.</p>
+<p>Handles command-line arguments for server configuration, checks if first-time setup is needed,
+allows resetting the admin password, configures SSL certificates, and launches the server using uvicorn.</p>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Supermatcher documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="modules.html" class="btn btn-neutral float-right" title="src" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barreiros.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

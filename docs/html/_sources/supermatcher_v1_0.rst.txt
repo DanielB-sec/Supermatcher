@@ -1,0 +1,7 @@
+supermatcher\_v1\_0 module
+==========================
+
+.. automodule:: supermatcher_v1_0
+   :members:
+   :show-inheritance:
+   :undoc-members:

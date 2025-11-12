@@ -1,0 +1,364 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>preprocessing &mdash; Supermatcher 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Supermatcher
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Supermatcher</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Module code</a></li>
+      <li class="breadcrumb-item active">preprocessing</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for preprocessing</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Preprocessing Module for Supermatcher v1.0 (Hybrid)</span>
+
+<span class="sd">This module contains all image preprocessing functions for fingerprint processing:</span>
+<span class="sd">    - Image loading and normalization</span>
+<span class="sd">    - Segmentation (foreground/background separation)</span>
+<span class="sd">    - Coherence-enhancing diffusion for ridge enhancement</span>
+
+<span class="sd">Functions extracted from supermatcher_v0.5.1.py core pipeline.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">cv2</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.config</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">NORMALISE_MEAN</span><span class="p">,</span> <span class="n">NORMALISE_STD</span><span class="p">,</span>
+    <span class="n">SEGMENTATION_BLOCK_SIZE</span><span class="p">,</span> <span class="n">SEGMENTATION_VARIANCE_THRESHOLD</span><span class="p">,</span>
+    <span class="n">COHERENCE_ITERATIONS</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="load_grayscale_image">
+<a class="viewcode-back" href="../preprocessing.html#preprocessing.load_grayscale_image">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_grayscale_image</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load a fingerprint image as grayscale float32.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        path (Path): Path to the fingerprint image file.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        np.ndarray: Grayscale image as float32 (0-255 range).</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        FileNotFoundError: If the image cannot be loaded.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">cv2</span><span class="o">.</span><span class="n">IMREAD_GRAYSCALE</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">image</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to read fingerprint image: </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">image</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="normalise_image">
+<a class="viewcode-back" href="../preprocessing.html#preprocessing.normalise_image">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">normalise_image</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                    <span class="n">block_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
+                    <span class="n">mean0</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="n">var0</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Normalize image intensity using local block statistics.</span>
+<span class="sd">    </span>
+<span class="sd">    Applies local normalization to compensate for uneven illumination and contrast.</span>
+<span class="sd">    Each pixel is normalized based on the mean and variance of its local neighborhood.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        image (np.ndarray): Input grayscale image (any numeric type).</span>
+<span class="sd">        block_size (int, optional): Size of local neighborhood block. Defaults to 16.</span>
+<span class="sd">        mean0 (Optional[float], optional): Target mean intensity. Uses config default if None.</span>
+<span class="sd">        var0 (Optional[float], optional): Target variance. Uses config default if None.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        np.ndarray: Normalized image (float32, 0-255 range).</span>
+<span class="sd">        </span>
+<span class="sd">    Note:</span>
+<span class="sd">        Formula: normalized = mean0 + (image - local_mean) * sqrt(var0 / local_var)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">mean0</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">mean0</span> <span class="o">=</span> <span class="n">NORMALISE_MEAN</span>
+    <span class="k">if</span> <span class="n">var0</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">var0</span> <span class="o">=</span> <span class="n">NORMALISE_STD</span> <span class="o">**</span> <span class="mi">2</span>  <span class="c1"># Convert std to variance</span>
+    
+    <span class="k">if</span> <span class="n">image</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">:</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+    <span class="n">kernel</span> <span class="o">=</span> <span class="p">(</span><span class="n">block_size</span><span class="p">,</span> <span class="n">block_size</span><span class="p">)</span>
+    <span class="n">local_mean</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">boxFilter</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">normalize</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">local_sq_mean</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">boxFilter</span><span class="p">(</span><span class="n">image</span> <span class="o">*</span> <span class="n">image</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">normalize</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">local_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">local_sq_mean</span> <span class="o">-</span> <span class="n">local_mean</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="mf">1e-6</span><span class="p">)</span>
+
+    <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">var0</span> <span class="o">/</span> <span class="n">local_var</span><span class="p">)</span>
+    <span class="n">normalised</span> <span class="o">=</span> <span class="n">mean0</span> <span class="o">+</span> <span class="p">(</span><span class="n">image</span> <span class="o">-</span> <span class="n">local_mean</span><span class="p">)</span> <span class="o">*</span> <span class="n">scale</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">normalised</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">255.0</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="block_variance_segmentation">
+<a class="viewcode-back" href="../preprocessing.html#preprocessing.block_variance_segmentation">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">block_variance_segmentation</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                                <span class="n">block_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                                <span class="n">threshold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Segment fingerprint foreground from background using block variance.</span>
+<span class="sd">    </span>
+<span class="sd">    Divides the image into blocks and computes variance for each block.</span>
+<span class="sd">    High-variance blocks indicate ridge structures (foreground), while</span>
+<span class="sd">    low-variance blocks indicate background or noise.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        image (np.ndarray): Input grayscale image (float32, 0-255).</span>
+<span class="sd">        block_size (Optional[int], optional): Size of square blocks. Uses config default if None.</span>
+<span class="sd">        threshold (Optional[float], optional): Variance threshold. Uses config default if None.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        np.ndarray: Boolean mask: True for foreground, False for background.</span>
+<span class="sd">        </span>
+<span class="sd">    Note:</span>
+<span class="sd">        Applies morphological closing and opening to remove noise.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">block_size</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">block_size</span> <span class="o">=</span> <span class="n">SEGMENTATION_BLOCK_SIZE</span>
+    <span class="k">if</span> <span class="n">threshold</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">threshold</span> <span class="o">=</span> <span class="n">SEGMENTATION_VARIANCE_THRESHOLD</span>
+    
+    <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">block_size</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">block_size</span><span class="p">):</span>
+            <span class="n">block</span> <span class="o">=</span> <span class="n">image</span><span class="p">[</span><span class="n">y</span><span class="p">:</span><span class="n">y</span> <span class="o">+</span> <span class="n">block_size</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span><span class="n">x</span> <span class="o">+</span> <span class="n">block_size</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">block</span><span class="o">.</span><span class="n">size</span> <span class="o">&lt;</span> <span class="n">block_size</span> <span class="o">*</span> <span class="n">block_size</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">variance</span> <span class="o">=</span> <span class="n">block</span><span class="o">.</span><span class="n">var</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">variance</span> <span class="o">&gt;=</span> <span class="n">threshold</span><span class="p">:</span>
+                <span class="n">mask</span><span class="p">[</span><span class="n">y</span><span class="p">:</span><span class="n">y</span> <span class="o">+</span> <span class="n">block_size</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span><span class="n">x</span> <span class="o">+</span> <span class="n">block_size</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="c1"># Morphological operations to clean up mask</span>
+    <span class="n">kernel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">morphologyEx</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">MORPH_CLOSE</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">iterations</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">morphologyEx</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">MORPH_OPEN</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">iterations</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="gaussian_derivatives">
+<a class="viewcode-back" href="../preprocessing.html#preprocessing.gaussian_derivatives">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">gaussian_derivatives</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">sigma</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute smoothed image gradients using Gaussian convolution.</span>
+<span class="sd">    </span>
+<span class="sd">    Applies Gaussian blur followed by Sobel operators to compute stable gradients.</span>
+<span class="sd">    Uses float64 precision for numerical stability.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        image (np.ndarray): Input grayscale image (any numeric type).</span>
+<span class="sd">        sigma (float): Standard deviation of Gaussian smoothing.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        Tuple[np.ndarray, np.ndarray]: Tuple of (gx, gy) - gradient in x and y directions (float64).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ksize</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mi">6</span> <span class="o">*</span> <span class="n">sigma</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">|</span> <span class="mi">1</span>  <span class="c1"># Ensure odd kernel size</span>
+    <span class="n">blurred</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">GaussianBlur</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="p">(</span><span class="n">ksize</span><span class="p">,</span> <span class="n">ksize</span><span class="p">),</span> <span class="n">sigma</span><span class="p">)</span>
+    <span class="n">gx</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">Sobel</span><span class="p">(</span><span class="n">blurred</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">CV_64F</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ksize</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">gy</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">Sobel</span><span class="p">(</span><span class="n">blurred</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">CV_64F</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">ksize</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">gx</span><span class="p">,</span> <span class="n">gy</span></div>
+
+
+
+<div class="viewcode-block" id="coherence_diffusion">
+<a class="viewcode-back" href="../preprocessing.html#preprocessing.coherence_diffusion">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">coherence_diffusion</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                       <span class="n">mask</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                       <span class="n">iterations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                       <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.15</span><span class="p">,</span>
+                       <span class="n">grad_sigma</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+                       <span class="n">tensor_sigma</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
+                       <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.01</span><span class="p">,</span>
+                       <span class="n">beta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.25</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Apply coherence-enhancing diffusion (CED) for ridge enhancement.</span>
+<span class="sd">    </span>
+<span class="sd">    Implements anisotropic diffusion based on the local structure tensor, which</span>
+<span class="sd">    enhances ridge structures while preserving edges. Diffusion is stronger along</span>
+<span class="sd">    ridge directions and weaker across ridges.</span>
+<span class="sd">    </span>
+<span class="sd">    The algorithm:</span>
+<span class="sd">        1. Computes structure tensor from image gradients.</span>
+<span class="sd">        2. Calculates eigenvalues (λ1, λ2) to determine local coherence.</span>
+<span class="sd">        3. Constructs diffusion tensor with anisotropic diffusivity.</span>
+<span class="sd">        4. Applies diffusion equation iteratively: I(t+1) = I(t) + dt * div(D·∇I)</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        image (np.ndarray): Input grayscale image (float32, 0-255).</span>
+<span class="sd">        mask (np.ndarray): Boolean mask indicating valid foreground pixels.</span>
+<span class="sd">        iterations (Optional[int], optional): Number of diffusion iterations. Uses config default if None.</span>
+<span class="sd">        dt (float, optional): Time step size for numerical integration. Defaults to 0.15.</span>
+<span class="sd">        grad_sigma (float, optional): Sigma for Gaussian smoothing of gradients. Defaults to 1.0.</span>
+<span class="sd">        tensor_sigma (float, optional): Sigma for smoothing structure tensor. Defaults to 2.0.</span>
+<span class="sd">        alpha (float, optional): Minimum diffusivity perpendicular to ridges. Defaults to 0.01.</span>
+<span class="sd">        beta (float, optional): Maximum diffusivity parallel to ridges. Defaults to 1.25.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        np.ndarray: Enhanced image (float32, 0-255) with connected ridges.</span>
+<span class="sd">        </span>
+<span class="sd">    Note:</span>
+<span class="sd">        Uses float64 precision internally for numerical stability.</span>
+<span class="sd">        Coherence measure: exp(-(λ1-λ2)²/(λ1·λ2)) ∈ [0,1]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">iterations</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">iterations</span> <span class="o">=</span> <span class="n">COHERENCE_ITERATIONS</span>
+    
+    <span class="n">I</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">valid</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+    
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">iterations</span><span class="p">):</span>
+        <span class="c1"># Compute structure tensor</span>
+        <span class="n">gx</span><span class="p">,</span> <span class="n">gy</span> <span class="o">=</span> <span class="n">gaussian_derivatives</span><span class="p">(</span><span class="n">I</span><span class="p">,</span> <span class="n">grad_sigma</span><span class="p">)</span>
+        <span class="n">Jxx</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">GaussianBlur</span><span class="p">(</span><span class="n">gx</span> <span class="o">*</span> <span class="n">gx</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">tensor_sigma</span><span class="p">)</span>
+        <span class="n">Jyy</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">GaussianBlur</span><span class="p">(</span><span class="n">gy</span> <span class="o">*</span> <span class="n">gy</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">tensor_sigma</span><span class="p">)</span>
+        <span class="n">Jxy</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">GaussianBlur</span><span class="p">(</span><span class="n">gx</span> <span class="o">*</span> <span class="n">gy</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">tensor_sigma</span><span class="p">)</span>
+
+        <span class="c1"># Eigenvalues of structure tensor</span>
+        <span class="n">trace</span> <span class="o">=</span> <span class="n">Jxx</span> <span class="o">+</span> <span class="n">Jyy</span>
+        <span class="n">diff</span> <span class="o">=</span> <span class="n">Jxx</span> <span class="o">-</span> <span class="n">Jyy</span>
+        <span class="n">discriminant</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">diff</span> <span class="o">*</span> <span class="n">diff</span> <span class="o">+</span> <span class="mf">4.0</span> <span class="o">*</span> <span class="n">Jxy</span> <span class="o">*</span> <span class="n">Jxy</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+
+        <span class="n">lambda1</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">trace</span> <span class="o">+</span> <span class="n">discriminant</span><span class="p">)</span>
+        <span class="n">lambda2</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">trace</span> <span class="o">-</span> <span class="n">discriminant</span><span class="p">)</span>
+
+        <span class="c1"># Coherence measure</span>
+        <span class="n">denom</span> <span class="o">=</span> <span class="mf">1e-6</span> <span class="o">+</span> <span class="n">lambda1</span> <span class="o">*</span> <span class="n">lambda2</span> <span class="o">+</span> <span class="mf">1e-6</span>
+        <span class="n">num</span> <span class="o">=</span> <span class="p">(</span><span class="n">lambda1</span> <span class="o">-</span> <span class="n">lambda2</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">exponent</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">denom</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">num</span><span class="p">),</span> <span class="n">where</span><span class="o">=</span><span class="n">denom</span> <span class="o">!=</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">exponent</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">exponent</span><span class="p">,</span> <span class="o">-</span><span class="mf">60.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">coherence</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">exponent</span><span class="p">)</span>
+        
+        <span class="c1"># Diffusion coefficients</span>
+        <span class="n">c_parallel</span> <span class="o">=</span> <span class="n">alpha</span> <span class="o">+</span> <span class="p">(</span><span class="n">beta</span> <span class="o">-</span> <span class="n">alpha</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">coherence</span><span class="p">)</span>
+        <span class="n">c_perp</span> <span class="o">=</span> <span class="n">alpha</span>
+
+        <span class="c1"># Eigenvector (perpendicular to ridges)</span>
+        <span class="n">vx</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">Jxy</span>
+        <span class="n">vy</span> <span class="o">=</span> <span class="n">Jyy</span> <span class="o">-</span> <span class="n">Jxx</span> <span class="o">+</span> <span class="n">discriminant</span>
+        <span class="n">norm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">vx</span> <span class="o">*</span> <span class="n">vx</span> <span class="o">+</span> <span class="n">vy</span> <span class="o">*</span> <span class="n">vy</span><span class="p">)</span>
+        <span class="n">norm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">norm</span> <span class="o">&lt;</span> <span class="mf">1e-9</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">norm</span><span class="p">)</span>
+        <span class="n">vx</span> <span class="o">=</span> <span class="n">vx</span> <span class="o">/</span> <span class="n">norm</span>
+        <span class="n">vy</span> <span class="o">=</span> <span class="n">vy</span> <span class="o">/</span> <span class="n">norm</span>
+
+        <span class="c1"># Diffusion tensor</span>
+        <span class="n">Dxx</span> <span class="o">=</span> <span class="n">c_parallel</span> <span class="o">*</span> <span class="n">vx</span> <span class="o">*</span> <span class="n">vx</span> <span class="o">+</span> <span class="n">c_perp</span> <span class="o">*</span> <span class="n">vy</span> <span class="o">*</span> <span class="n">vy</span>
+        <span class="n">Dyy</span> <span class="o">=</span> <span class="n">c_parallel</span> <span class="o">*</span> <span class="n">vy</span> <span class="o">*</span> <span class="n">vy</span> <span class="o">+</span> <span class="n">c_perp</span> <span class="o">*</span> <span class="n">vx</span> <span class="o">*</span> <span class="n">vx</span>
+        <span class="n">Dxy</span> <span class="o">=</span> <span class="p">(</span><span class="n">c_parallel</span> <span class="o">-</span> <span class="n">c_perp</span><span class="p">)</span> <span class="o">*</span> <span class="n">vx</span> <span class="o">*</span> <span class="n">vy</span>
+
+        <span class="c1"># Gradient of I</span>
+        <span class="n">Ix</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">Sobel</span><span class="p">(</span><span class="n">I</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">CV_64F</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ksize</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+        <span class="n">Iy</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">Sobel</span><span class="p">(</span><span class="n">I</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">CV_64F</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">ksize</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+
+        <span class="c1"># Flux J = D * ∇I</span>
+        <span class="n">Jx</span> <span class="o">=</span> <span class="n">Dxx</span> <span class="o">*</span> <span class="n">Ix</span> <span class="o">+</span> <span class="n">Dxy</span> <span class="o">*</span> <span class="n">Iy</span>
+        <span class="n">Jy</span> <span class="o">=</span> <span class="n">Dxy</span> <span class="o">*</span> <span class="n">Ix</span> <span class="o">+</span> <span class="n">Dyy</span> <span class="o">*</span> <span class="n">Iy</span>
+
+        <span class="c1"># Divergence of flux</span>
+        <span class="n">divJx</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">Sobel</span><span class="p">(</span><span class="n">Jx</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">CV_64F</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ksize</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+        <span class="n">divJy</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">Sobel</span><span class="p">(</span><span class="n">Jy</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">CV_64F</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">ksize</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+        <span class="n">divergence</span> <span class="o">=</span> <span class="n">divJx</span> <span class="o">+</span> <span class="n">divJy</span>
+
+        <span class="c1"># Update only foreground pixels</span>
+        <span class="n">I</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span> <span class="o">=</span> <span class="n">I</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span> <span class="o">+</span> <span class="n">dt</span> <span class="o">*</span> <span class="n">divergence</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">I</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">255.0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barreiros.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
