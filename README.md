@@ -120,7 +120,7 @@ python run_webserver.py
 
 ## ⚙️ Configuration
 
-Edit `src/webserver/config.py` to customize:
+Edit `src/webserver/config.py` to customize
 
 
 ---
