@@ -18,7 +18,9 @@
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="webserver.routes package" href="webserver.routes.html" />
+    <link rel="prev" title="template_creation module" href="template_creation.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -40,121 +42,91 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <!-- Local TOC -->
-              <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">webserver package</a><ul>
-<li><a class="reference internal" href="#subpackages">Subpackages</a></li>
-<li><a class="reference internal" href="#submodules">Submodules</a></li>
-<li><a class="reference internal" href="#module-webserver.auth">webserver.auth module</a><ul>
-<li><a class="reference internal" href="#webserver.auth.check_rate_limit"><code class="docutils literal notranslate"><span class="pre">check_rate_limit()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.auth.cleanup_rate_limit_storage"><code class="docutils literal notranslate"><span class="pre">cleanup_rate_limit_storage()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.auth.create_token"><code class="docutils literal notranslate"><span class="pre">create_token()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.auth.get_client_ip"><code class="docutils literal notranslate"><span class="pre">get_client_ip()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.auth.get_current_user"><code class="docutils literal notranslate"><span class="pre">get_current_user()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.auth.hash_password"><code class="docutils literal notranslate"><span class="pre">hash_password()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.auth.is_ip_locked"><code class="docutils literal notranslate"><span class="pre">is_ip_locked()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.auth.rate_limit"><code class="docutils literal notranslate"><span class="pre">rate_limit()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.auth.record_login_attempt"><code class="docutils literal notranslate"><span class="pre">record_login_attempt()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.auth.refresh_token"><code class="docutils literal notranslate"><span class="pre">refresh_token()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.auth.require_auth"><code class="docutils literal notranslate"><span class="pre">require_auth()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.auth.verify_password"><code class="docutils literal notranslate"><span class="pre">verify_password()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.auth.verify_token"><code class="docutils literal notranslate"><span class="pre">verify_token()</span></code></a></li>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="run_webserver.html">run_webserver module</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">src</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">config module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extractor.html">extractor module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matching.html">matching module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="models.html">models module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="models_serialization.html">models_serialization module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocessing.html">preprocessing module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="supermatcher_v1_0.html">supermatcher_v1_0 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="template_creation.html">template_creation module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">webserver package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#subpackages">Subpackages</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="webserver.routes.html">webserver.routes package</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#module-webserver.biometric_worker">webserver.biometric_worker module</a><ul>
-<li><a class="reference internal" href="#webserver.biometric_worker.worker_enroll"><code class="docutils literal notranslate"><span class="pre">worker_enroll()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.biometric_worker.worker_enroll_single_user"><code class="docutils literal notranslate"><span class="pre">worker_enroll_single_user()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.biometric_worker.worker_identify"><code class="docutils literal notranslate"><span class="pre">worker_identify()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.biometric_worker.worker_load_folder"><code class="docutils literal notranslate"><span class="pre">worker_load_folder()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.biometric_worker.worker_match_probe_against_gallery_chunk"><code class="docutils literal notranslate"><span class="pre">worker_match_probe_against_gallery_chunk()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.biometric_worker.worker_verify"><code class="docutils literal notranslate"><span class="pre">worker_verify()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-webserver.auth">webserver.auth module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.auth.check_rate_limit"><code class="docutils literal notranslate"><span class="pre">check_rate_limit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.auth.cleanup_rate_limit_storage"><code class="docutils literal notranslate"><span class="pre">cleanup_rate_limit_storage()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.auth.create_token"><code class="docutils literal notranslate"><span class="pre">create_token()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.auth.get_client_ip"><code class="docutils literal notranslate"><span class="pre">get_client_ip()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.auth.get_current_user"><code class="docutils literal notranslate"><span class="pre">get_current_user()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.auth.hash_password"><code class="docutils literal notranslate"><span class="pre">hash_password()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.auth.is_ip_locked"><code class="docutils literal notranslate"><span class="pre">is_ip_locked()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.auth.rate_limit"><code class="docutils literal notranslate"><span class="pre">rate_limit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.auth.record_login_attempt"><code class="docutils literal notranslate"><span class="pre">record_login_attempt()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.auth.refresh_token"><code class="docutils literal notranslate"><span class="pre">refresh_token()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.auth.require_auth"><code class="docutils literal notranslate"><span class="pre">require_auth()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.auth.verify_password"><code class="docutils literal notranslate"><span class="pre">verify_password()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.auth.verify_token"><code class="docutils literal notranslate"><span class="pre">verify_token()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#module-webserver.config">webserver.config module</a><ul>
-<li><a class="reference internal" href="#webserver.config.ensure_directories"><code class="docutils literal notranslate"><span class="pre">ensure_directories()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.config.get_db_key"><code class="docutils literal notranslate"><span class="pre">get_db_key()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.config.get_jwt_secret"><code class="docutils literal notranslate"><span class="pre">get_jwt_secret()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-webserver.biometric_worker">webserver.biometric_worker module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.biometric_worker.worker_enroll"><code class="docutils literal notranslate"><span class="pre">worker_enroll()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.biometric_worker.worker_enroll_single_user"><code class="docutils literal notranslate"><span class="pre">worker_enroll_single_user()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.biometric_worker.worker_identify"><code class="docutils literal notranslate"><span class="pre">worker_identify()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.biometric_worker.worker_load_folder"><code class="docutils literal notranslate"><span class="pre">worker_load_folder()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.biometric_worker.worker_match_probe_against_gallery_chunk"><code class="docutils literal notranslate"><span class="pre">worker_match_probe_against_gallery_chunk()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.biometric_worker.worker_verify"><code class="docutils literal notranslate"><span class="pre">worker_verify()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#module-webserver.database">webserver.database module</a><ul>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase</span></code></a><ul>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.add_fingerprint"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.add_fingerprint()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.authenticate"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.authenticate()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.cleanup_old_jobs"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.cleanup_old_jobs()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.close"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.close()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.create_auth_user"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.create_auth_user()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.create_job"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.create_job()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.delete_all_fingerprints"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.delete_all_fingerprints()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.delete_fingerprint"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.delete_fingerprint()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.get_all_templates"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_all_templates()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.get_audit_log"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_audit_log()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.get_fingerprint"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_fingerprint()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.get_job"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_job()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.get_stats"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_stats()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.list_fingerprints"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.list_fingerprints()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.reset_admin_password"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.reset_admin_password()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.update_fingerprint"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.update_fingerprint()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.database.BiometricDatabase.update_job"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.update_job()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-webserver.config">webserver.config module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.config.ensure_directories"><code class="docutils literal notranslate"><span class="pre">ensure_directories()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.config.get_db_key"><code class="docutils literal notranslate"><span class="pre">get_db_key()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.config.get_jwt_secret"><code class="docutils literal notranslate"><span class="pre">get_jwt_secret()</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#module-webserver.database">webserver.database module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.database.BiometricDatabase"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#module-webserver.jobs">webserver.jobs module</a><ul>
-<li><a class="reference internal" href="#webserver.jobs.JobManager"><code class="docutils literal notranslate"><span class="pre">JobManager</span></code></a><ul>
-<li><a class="reference internal" href="#webserver.jobs.JobManager.cancel_job"><code class="docutils literal notranslate"><span class="pre">JobManager.cancel_job()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.jobs.JobManager.cleanup_old_jobs"><code class="docutils literal notranslate"><span class="pre">JobManager.cleanup_old_jobs()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.jobs.JobManager.create_load_folder_job"><code class="docutils literal notranslate"><span class="pre">JobManager.create_load_folder_job()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.jobs.JobManager.get_job_status"><code class="docutils literal notranslate"><span class="pre">JobManager.get_job_status()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.jobs.JobManager.get_running_jobs"><code class="docutils literal notranslate"><span class="pre">JobManager.get_running_jobs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-webserver.jobs">webserver.jobs module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.jobs.JobManager"><code class="docutils literal notranslate"><span class="pre">JobManager</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#module-webserver.logger">webserver.logger module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.logger.cleanup_old_logs"><code class="docutils literal notranslate"><span class="pre">cleanup_old_logs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.logger.get_logger"><code class="docutils literal notranslate"><span class="pre">get_logger()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.logger.log_access"><code class="docutils literal notranslate"><span class="pre">log_access()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.logger.log_auth"><code class="docutils literal notranslate"><span class="pre">log_auth()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.logger.log_biometric"><code class="docutils literal notranslate"><span class="pre">log_biometric()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.logger.log_error"><code class="docutils literal notranslate"><span class="pre">log_error()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.logger.log_job"><code class="docutils literal notranslate"><span class="pre">log_job()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.logger.log_json"><code class="docutils literal notranslate"><span class="pre">log_json()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.logger.log_shutdown"><code class="docutils literal notranslate"><span class="pre">log_shutdown()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.logger.log_startup"><code class="docutils literal notranslate"><span class="pre">log_startup()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#module-webserver.logger">webserver.logger module</a><ul>
-<li><a class="reference internal" href="#webserver.logger.cleanup_old_logs"><code class="docutils literal notranslate"><span class="pre">cleanup_old_logs()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.logger.get_logger"><code class="docutils literal notranslate"><span class="pre">get_logger()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.logger.log_access"><code class="docutils literal notranslate"><span class="pre">log_access()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.logger.log_auth"><code class="docutils literal notranslate"><span class="pre">log_auth()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.logger.log_biometric"><code class="docutils literal notranslate"><span class="pre">log_biometric()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.logger.log_error"><code class="docutils literal notranslate"><span class="pre">log_error()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.logger.log_job"><code class="docutils literal notranslate"><span class="pre">log_job()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.logger.log_json"><code class="docutils literal notranslate"><span class="pre">log_json()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.logger.log_shutdown"><code class="docutils literal notranslate"><span class="pre">log_shutdown()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.logger.log_startup"><code class="docutils literal notranslate"><span class="pre">log_startup()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#module-webserver.server">webserver.server module</a></li>
-<li><a class="reference internal" href="#module-webserver">Module contents</a><ul>
-<li><a class="reference internal" href="#webserver.BiometricDatabase"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase</span></code></a><ul>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.add_fingerprint"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.add_fingerprint()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.authenticate"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.authenticate()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.cleanup_old_jobs"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.cleanup_old_jobs()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.close"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.close()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.create_auth_user"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.create_auth_user()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.create_job"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.create_job()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.delete_all_fingerprints"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.delete_all_fingerprints()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.delete_fingerprint"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.delete_fingerprint()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.get_all_templates"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_all_templates()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.get_audit_log"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_audit_log()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.get_fingerprint"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_fingerprint()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.get_job"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_job()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.get_stats"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.get_stats()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.list_fingerprints"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.list_fingerprints()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.reset_admin_password"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.reset_admin_password()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.update_fingerprint"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.update_fingerprint()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.BiometricDatabase.update_job"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase.update_job()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#webserver.create_token"><code class="docutils literal notranslate"><span class="pre">create_token()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.get_logger"><code class="docutils literal notranslate"><span class="pre">get_logger()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.require_auth"><code class="docutils literal notranslate"><span class="pre">require_auth()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.verify_token"><code class="docutils literal notranslate"><span class="pre">verify_token()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-webserver.server">webserver.server module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-webserver">Module contents</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.BiometricDatabase"><code class="docutils literal notranslate"><span class="pre">BiometricDatabase</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.create_token"><code class="docutils literal notranslate"><span class="pre">create_token()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.get_logger"><code class="docutils literal notranslate"><span class="pre">get_logger()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.require_auth"><code class="docutils literal notranslate"><span class="pre">require_auth()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#webserver.verify_token"><code class="docutils literal notranslate"><span class="pre">verify_token()</span></code></a></li>
 </ul>
 </li>
 </ul>
 </li>
 </ul>
-</div>
+</li>
+</ul>
+
         </div>
       </div>
     </nav>
@@ -169,6 +141,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">src</a></li>
       <li class="breadcrumb-item active">webserver package</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/webserver.rst.txt" rel="nofollow"> View page source</a>
@@ -1808,12 +1781,15 @@ If None, any authenticated user is allowed</p>
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="template_creation.html" class="btn btn-neutral float-left" title="template_creation module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="webserver.routes.html" class="btn btn-neutral float-right" title="webserver.routes package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2025, Daniel Barreiros.</p>
+    <p>&#169; Copyright 2025, Daniel Barreiros, David Pereira.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

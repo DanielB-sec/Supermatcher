@@ -18,7 +18,9 @@
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="models_serialization module" href="models_serialization.html" />
+    <link rel="prev" title="matching module" href="matching.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -40,75 +42,87 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <!-- Local TOC -->
-              <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">models module</a><ul>
-<li><a class="reference internal" href="#models.FingerprintTemplate"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate</span></code></a><ul>
-<li><a class="reference internal" href="#models.FingerprintTemplate.identifier"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.identifier</span></code></a></li>
-<li><a class="reference internal" href="#models.FingerprintTemplate.image_path"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.image_path</span></code></a></li>
-<li><a class="reference internal" href="#models.FingerprintTemplate.protected"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.protected</span></code></a></li>
-<li><a class="reference internal" href="#models.FingerprintTemplate.bit_length"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.bit_length</span></code></a></li>
-<li><a class="reference internal" href="#models.FingerprintTemplate.quality"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.quality</span></code></a></li>
-<li><a class="reference internal" href="#models.FingerprintTemplate.raw_features"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.raw_features</span></code></a></li>
-<li><a class="reference internal" href="#models.FingerprintTemplate.minutiae"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.minutiae</span></code></a></li>
-<li><a class="reference internal" href="#models.FingerprintTemplate.fused"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.fused</span></code></a></li>
-<li><a class="reference internal" href="#models.FingerprintTemplate.source_count"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.source_count</span></code></a></li>
-<li><a class="reference internal" href="#models.FingerprintTemplate.consensus_score"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.consensus_score</span></code></a></li>
-<li><a class="reference internal" href="#id0"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.bit_length</span></code></a></li>
-<li><a class="reference internal" href="#id1"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.consensus_score</span></code></a></li>
-<li><a class="reference internal" href="#id2"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.fused</span></code></a></li>
-<li><a class="reference internal" href="#id3"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.identifier</span></code></a></li>
-<li><a class="reference internal" href="#id4"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.image_path</span></code></a></li>
-<li><a class="reference internal" href="#id5"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.minutiae</span></code></a></li>
-<li><a class="reference internal" href="#id6"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.protected</span></code></a></li>
-<li><a class="reference internal" href="#id7"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.quality</span></code></a></li>
-<li><a class="reference internal" href="#id8"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.raw_features</span></code></a></li>
-<li><a class="reference internal" href="#id9"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.source_count</span></code></a></li>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="run_webserver.html">run_webserver module</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">src</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">config module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extractor.html">extractor module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matching.html">matching module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">models module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#models.FingerprintTemplate"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#models.FingerprintTemplate.identifier"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.identifier</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.FingerprintTemplate.image_path"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.image_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.FingerprintTemplate.protected"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.protected</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.FingerprintTemplate.bit_length"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.bit_length</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.FingerprintTemplate.quality"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.quality</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.FingerprintTemplate.raw_features"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.raw_features</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.FingerprintTemplate.minutiae"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.minutiae</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.FingerprintTemplate.fused"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.fused</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.FingerprintTemplate.source_count"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.source_count</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.FingerprintTemplate.consensus_score"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.consensus_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id0"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.bit_length</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id1"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.consensus_score</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id2"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.fused</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id3"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.identifier</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id4"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.image_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id5"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.minutiae</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id6"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.protected</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id7"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.quality</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id8"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.raw_features</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id9"><code class="docutils literal notranslate"><span class="pre">FingerprintTemplate.source_count</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#models.FusionSettings"><code class="docutils literal notranslate"><span class="pre">FusionSettings</span></code></a><ul>
-<li><a class="reference internal" href="#models.FusionSettings.enabled"><code class="docutils literal notranslate"><span class="pre">FusionSettings.enabled</span></code></a></li>
-<li><a class="reference internal" href="#models.FusionSettings.distance"><code class="docutils literal notranslate"><span class="pre">FusionSettings.distance</span></code></a></li>
-<li><a class="reference internal" href="#models.FusionSettings.angle_deg"><code class="docutils literal notranslate"><span class="pre">FusionSettings.angle_deg</span></code></a></li>
-<li><a class="reference internal" href="#models.FusionSettings.min_consensus"><code class="docutils literal notranslate"><span class="pre">FusionSettings.min_consensus</span></code></a></li>
-<li><a class="reference internal" href="#models.FusionSettings.keep_raw"><code class="docutils literal notranslate"><span class="pre">FusionSettings.keep_raw</span></code></a></li>
-<li><a class="reference internal" href="#models.FusionSettings.mode"><code class="docutils literal notranslate"><span class="pre">FusionSettings.mode</span></code></a></li>
-<li><a class="reference internal" href="#id10"><code class="docutils literal notranslate"><span class="pre">FusionSettings.angle_deg</span></code></a></li>
-<li><a class="reference internal" href="#id11"><code class="docutils literal notranslate"><span class="pre">FusionSettings.distance</span></code></a></li>
-<li><a class="reference internal" href="#id12"><code class="docutils literal notranslate"><span class="pre">FusionSettings.enabled</span></code></a></li>
-<li><a class="reference internal" href="#id13"><code class="docutils literal notranslate"><span class="pre">FusionSettings.keep_raw</span></code></a></li>
-<li><a class="reference internal" href="#id14"><code class="docutils literal notranslate"><span class="pre">FusionSettings.min_consensus</span></code></a></li>
-<li><a class="reference internal" href="#id15"><code class="docutils literal notranslate"><span class="pre">FusionSettings.mode</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#models.FusionSettings"><code class="docutils literal notranslate"><span class="pre">FusionSettings</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#models.FusionSettings.enabled"><code class="docutils literal notranslate"><span class="pre">FusionSettings.enabled</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.FusionSettings.distance"><code class="docutils literal notranslate"><span class="pre">FusionSettings.distance</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.FusionSettings.angle_deg"><code class="docutils literal notranslate"><span class="pre">FusionSettings.angle_deg</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.FusionSettings.min_consensus"><code class="docutils literal notranslate"><span class="pre">FusionSettings.min_consensus</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.FusionSettings.keep_raw"><code class="docutils literal notranslate"><span class="pre">FusionSettings.keep_raw</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.FusionSettings.mode"><code class="docutils literal notranslate"><span class="pre">FusionSettings.mode</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id10"><code class="docutils literal notranslate"><span class="pre">FusionSettings.angle_deg</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id11"><code class="docutils literal notranslate"><span class="pre">FusionSettings.distance</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id12"><code class="docutils literal notranslate"><span class="pre">FusionSettings.enabled</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id13"><code class="docutils literal notranslate"><span class="pre">FusionSettings.keep_raw</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id14"><code class="docutils literal notranslate"><span class="pre">FusionSettings.min_consensus</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id15"><code class="docutils literal notranslate"><span class="pre">FusionSettings.mode</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#models.Minutia"><code class="docutils literal notranslate"><span class="pre">Minutia</span></code></a><ul>
-<li><a class="reference internal" href="#models.Minutia.x"><code class="docutils literal notranslate"><span class="pre">Minutia.x</span></code></a></li>
-<li><a class="reference internal" href="#models.Minutia.y"><code class="docutils literal notranslate"><span class="pre">Minutia.y</span></code></a></li>
-<li><a class="reference internal" href="#models.Minutia.angle"><code class="docutils literal notranslate"><span class="pre">Minutia.angle</span></code></a></li>
-<li><a class="reference internal" href="#models.Minutia.kind"><code class="docutils literal notranslate"><span class="pre">Minutia.kind</span></code></a></li>
-<li><a class="reference internal" href="#models.Minutia.quality"><code class="docutils literal notranslate"><span class="pre">Minutia.quality</span></code></a></li>
-<li><a class="reference internal" href="#id16"><code class="docutils literal notranslate"><span class="pre">Minutia.angle</span></code></a></li>
-<li><a class="reference internal" href="#id17"><code class="docutils literal notranslate"><span class="pre">Minutia.kind</span></code></a></li>
-<li><a class="reference internal" href="#id18"><code class="docutils literal notranslate"><span class="pre">Minutia.quality</span></code></a></li>
-<li><a class="reference internal" href="#id19"><code class="docutils literal notranslate"><span class="pre">Minutia.x</span></code></a></li>
-<li><a class="reference internal" href="#id20"><code class="docutils literal notranslate"><span class="pre">Minutia.y</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#models.Minutia"><code class="docutils literal notranslate"><span class="pre">Minutia</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#models.Minutia.x"><code class="docutils literal notranslate"><span class="pre">Minutia.x</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.Minutia.y"><code class="docutils literal notranslate"><span class="pre">Minutia.y</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.Minutia.angle"><code class="docutils literal notranslate"><span class="pre">Minutia.angle</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.Minutia.kind"><code class="docutils literal notranslate"><span class="pre">Minutia.kind</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.Minutia.quality"><code class="docutils literal notranslate"><span class="pre">Minutia.quality</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id16"><code class="docutils literal notranslate"><span class="pre">Minutia.angle</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id17"><code class="docutils literal notranslate"><span class="pre">Minutia.kind</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id18"><code class="docutils literal notranslate"><span class="pre">Minutia.quality</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id19"><code class="docutils literal notranslate"><span class="pre">Minutia.x</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id20"><code class="docutils literal notranslate"><span class="pre">Minutia.y</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#models.Pore"><code class="docutils literal notranslate"><span class="pre">Pore</span></code></a><ul>
-<li><a class="reference internal" href="#models.Pore.x"><code class="docutils literal notranslate"><span class="pre">Pore.x</span></code></a></li>
-<li><a class="reference internal" href="#models.Pore.y"><code class="docutils literal notranslate"><span class="pre">Pore.y</span></code></a></li>
-<li><a class="reference internal" href="#models.Pore.radius"><code class="docutils literal notranslate"><span class="pre">Pore.radius</span></code></a></li>
-<li><a class="reference internal" href="#models.Pore.strength"><code class="docutils literal notranslate"><span class="pre">Pore.strength</span></code></a></li>
-<li><a class="reference internal" href="#id21"><code class="docutils literal notranslate"><span class="pre">Pore.radius</span></code></a></li>
-<li><a class="reference internal" href="#id22"><code class="docutils literal notranslate"><span class="pre">Pore.strength</span></code></a></li>
-<li><a class="reference internal" href="#id23"><code class="docutils literal notranslate"><span class="pre">Pore.x</span></code></a></li>
-<li><a class="reference internal" href="#id24"><code class="docutils literal notranslate"><span class="pre">Pore.y</span></code></a></li>
-</ul>
-</li>
+<li class="toctree-l3"><a class="reference internal" href="#models.Pore"><code class="docutils literal notranslate"><span class="pre">Pore</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#models.Pore.x"><code class="docutils literal notranslate"><span class="pre">Pore.x</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.Pore.y"><code class="docutils literal notranslate"><span class="pre">Pore.y</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.Pore.radius"><code class="docutils literal notranslate"><span class="pre">Pore.radius</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.Pore.strength"><code class="docutils literal notranslate"><span class="pre">Pore.strength</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id21"><code class="docutils literal notranslate"><span class="pre">Pore.radius</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id22"><code class="docutils literal notranslate"><span class="pre">Pore.strength</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id23"><code class="docutils literal notranslate"><span class="pre">Pore.x</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id24"><code class="docutils literal notranslate"><span class="pre">Pore.y</span></code></a></li>
 </ul>
 </li>
 </ul>
-</div>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="models_serialization.html">models_serialization module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocessing.html">preprocessing module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="supermatcher_v1_0.html">supermatcher_v1_0 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="template_creation.html">template_creation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="webserver.html">webserver package</a></li>
+</ul>
+</li>
+</ul>
+
         </div>
       </div>
     </nav>
@@ -123,6 +137,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">src</a></li>
       <li class="breadcrumb-item active">models module</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/models.rst.txt" rel="nofollow"> View page source</a>
@@ -576,12 +591,15 @@ into a single master template.</p>
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="matching.html" class="btn btn-neutral float-left" title="matching module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="models_serialization.html" class="btn btn-neutral float-right" title="models_serialization module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2025, Daniel Barreiros.</p>
+    <p>&#169; Copyright 2025, Daniel Barreiros, David Pereira.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

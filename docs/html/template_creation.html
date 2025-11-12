@@ -18,7 +18,9 @@
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="webserver package" href="webserver.html" />
+    <link rel="prev" title="supermatcher_v1_0 module" href="supermatcher_v1_0.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -40,35 +42,47 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <!-- Local TOC -->
-              <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">template_creation module</a><ul>
-<li><a class="reference internal" href="#template_creation.CancelableHasher"><code class="docutils literal notranslate"><span class="pre">CancelableHasher</span></code></a><ul>
-<li><a class="reference internal" href="#template_creation.CancelableHasher.feature_dim"><code class="docutils literal notranslate"><span class="pre">CancelableHasher.feature_dim</span></code></a></li>
-<li><a class="reference internal" href="#template_creation.CancelableHasher.projection_dim"><code class="docutils literal notranslate"><span class="pre">CancelableHasher.projection_dim</span></code></a></li>
-<li><a class="reference internal" href="#template_creation.CancelableHasher.hash_count"><code class="docutils literal notranslate"><span class="pre">CancelableHasher.hash_count</span></code></a></li>
-<li><a class="reference internal" href="#template_creation.CancelableHasher.bit_length"><code class="docutils literal notranslate"><span class="pre">CancelableHasher.bit_length</span></code></a></li>
-<li><a class="reference internal" href="#id0"><code class="docutils literal notranslate"><span class="pre">CancelableHasher.bit_length</span></code></a></li>
-<li><a class="reference internal" href="#template_creation.CancelableHasher.encode"><code class="docutils literal notranslate"><span class="pre">CancelableHasher.encode()</span></code></a></li>
-<li><a class="reference internal" href="#template_creation.CancelableHasher.similarity"><code class="docutils literal notranslate"><span class="pre">CancelableHasher.similarity()</span></code></a></li>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="run_webserver.html">run_webserver module</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">src</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">config module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extractor.html">extractor module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matching.html">matching module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="models.html">models module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="models_serialization.html">models_serialization module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocessing.html">preprocessing module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="supermatcher_v1_0.html">supermatcher_v1_0 module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">template_creation module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#template_creation.CancelableHasher"><code class="docutils literal notranslate"><span class="pre">CancelableHasher</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#template_creation.CancelableHasher.feature_dim"><code class="docutils literal notranslate"><span class="pre">CancelableHasher.feature_dim</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#template_creation.CancelableHasher.projection_dim"><code class="docutils literal notranslate"><span class="pre">CancelableHasher.projection_dim</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#template_creation.CancelableHasher.hash_count"><code class="docutils literal notranslate"><span class="pre">CancelableHasher.hash_count</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#template_creation.CancelableHasher.bit_length"><code class="docutils literal notranslate"><span class="pre">CancelableHasher.bit_length</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id0"><code class="docutils literal notranslate"><span class="pre">CancelableHasher.bit_length</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#template_creation.CancelableHasher.encode"><code class="docutils literal notranslate"><span class="pre">CancelableHasher.encode()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#template_creation.CancelableHasher.similarity"><code class="docutils literal notranslate"><span class="pre">CancelableHasher.similarity()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#template_creation.align_minutiae_sets"><code class="docutils literal notranslate"><span class="pre">align_minutiae_sets()</span></code></a></li>
-<li><a class="reference internal" href="#template_creation.build_feature_vector"><code class="docutils literal notranslate"><span class="pre">build_feature_vector()</span></code></a></li>
-<li><a class="reference internal" href="#template_creation.create_fused_template"><code class="docutils literal notranslate"><span class="pre">create_fused_template()</span></code></a></li>
-<li><a class="reference internal" href="#template_creation.estimate_rigid_transform_ransac"><code class="docutils literal notranslate"><span class="pre">estimate_rigid_transform_ransac()</span></code></a></li>
-<li><a class="reference internal" href="#template_creation.evaluate_quality"><code class="docutils literal notranslate"><span class="pre">evaluate_quality()</span></code></a></li>
-<li><a class="reference internal" href="#template_creation.fuse_feature_vectors"><code class="docutils literal notranslate"><span class="pre">fuse_feature_vectors()</span></code></a></li>
-<li><a class="reference internal" href="#template_creation.fuse_identity_templates"><code class="docutils literal notranslate"><span class="pre">fuse_identity_templates()</span></code></a></li>
-<li><a class="reference internal" href="#template_creation.fuse_minutiae_consensus"><code class="docutils literal notranslate"><span class="pre">fuse_minutiae_consensus()</span></code></a></li>
-<li><a class="reference internal" href="#template_creation.fuse_protected_templates"><code class="docutils literal notranslate"><span class="pre">fuse_protected_templates()</span></code></a></li>
-<li><a class="reference internal" href="#template_creation.load_templates_from_directory"><code class="docutils literal notranslate"><span class="pre">load_templates_from_directory()</span></code></a></li>
-<li><a class="reference internal" href="#template_creation.save_template"><code class="docutils literal notranslate"><span class="pre">save_template()</span></code></a></li>
-<li><a class="reference internal" href="#template_creation.template_output_path"><code class="docutils literal notranslate"><span class="pre">template_output_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#template_creation.align_minutiae_sets"><code class="docutils literal notranslate"><span class="pre">align_minutiae_sets()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#template_creation.build_feature_vector"><code class="docutils literal notranslate"><span class="pre">build_feature_vector()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#template_creation.create_fused_template"><code class="docutils literal notranslate"><span class="pre">create_fused_template()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#template_creation.estimate_rigid_transform_ransac"><code class="docutils literal notranslate"><span class="pre">estimate_rigid_transform_ransac()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#template_creation.evaluate_quality"><code class="docutils literal notranslate"><span class="pre">evaluate_quality()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#template_creation.fuse_feature_vectors"><code class="docutils literal notranslate"><span class="pre">fuse_feature_vectors()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#template_creation.fuse_identity_templates"><code class="docutils literal notranslate"><span class="pre">fuse_identity_templates()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#template_creation.fuse_minutiae_consensus"><code class="docutils literal notranslate"><span class="pre">fuse_minutiae_consensus()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#template_creation.fuse_protected_templates"><code class="docutils literal notranslate"><span class="pre">fuse_protected_templates()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#template_creation.load_templates_from_directory"><code class="docutils literal notranslate"><span class="pre">load_templates_from_directory()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#template_creation.save_template"><code class="docutils literal notranslate"><span class="pre">save_template()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#template_creation.template_output_path"><code class="docutils literal notranslate"><span class="pre">template_output_path()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="webserver.html">webserver package</a></li>
 </ul>
 </li>
 </ul>
-</div>
+
         </div>
       </div>
     </nav>
@@ -83,6 +97,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">src</a></li>
       <li class="breadcrumb-item active">template_creation module</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/template_creation.rst.txt" rel="nofollow"> View page source</a>
@@ -460,12 +475,15 @@ It includes:</p>
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="supermatcher_v1_0.html" class="btn btn-neutral float-left" title="supermatcher_v1_0 module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="webserver.html" class="btn btn-neutral float-right" title="webserver package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2025, Daniel Barreiros.</p>
+    <p>&#169; Copyright 2025, Daniel Barreiros, David Pereira.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

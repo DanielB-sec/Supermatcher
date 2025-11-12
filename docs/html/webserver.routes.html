@@ -18,7 +18,8 @@
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="webserver package" href="webserver.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -40,62 +41,38 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <!-- Local TOC -->
-              <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">webserver.routes package</a><ul>
-<li><a class="reference internal" href="#submodules">Submodules</a></li>
-<li><a class="reference internal" href="#module-webserver.routes.admin_routes">webserver.routes.admin_routes module</a><ul>
-<li><a class="reference internal" href="#webserver.routes.admin_routes.cancel_job"><code class="docutils literal notranslate"><span class="pre">cancel_job()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.admin_routes.cleanup_jobs"><code class="docutils literal notranslate"><span class="pre">cleanup_jobs()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.admin_routes.get_audit_log"><code class="docutils literal notranslate"><span class="pre">get_audit_log()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.admin_routes.get_job"><code class="docutils literal notranslate"><span class="pre">get_job()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.admin_routes.get_stats"><code class="docutils literal notranslate"><span class="pre">get_stats()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.admin_routes.list_running_jobs"><code class="docutils literal notranslate"><span class="pre">list_running_jobs()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.admin_routes.load_folder"><code class="docutils literal notranslate"><span class="pre">load_folder()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.admin_routes.set_job_manager"><code class="docutils literal notranslate"><span class="pre">set_job_manager()</span></code></a></li>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="run_webserver.html">run_webserver module</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">src</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">config module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extractor.html">extractor module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matching.html">matching module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="models.html">models module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="models_serialization.html">models_serialization module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocessing.html">preprocessing module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="supermatcher_v1_0.html">supermatcher_v1_0 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="template_creation.html">template_creation module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="webserver.html">webserver package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="webserver.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="current reference internal" href="#">webserver.routes package</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#module-webserver.routes.auth_routes">webserver.routes.auth_routes module</a><ul>
-<li><a class="reference internal" href="#webserver.routes.auth_routes.LoginRequest"><code class="docutils literal notranslate"><span class="pre">LoginRequest</span></code></a><ul>
-<li><a class="reference internal" href="#webserver.routes.auth_routes.LoginRequest.login"><code class="docutils literal notranslate"><span class="pre">LoginRequest.login</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.auth_routes.LoginRequest.model_config"><code class="docutils literal notranslate"><span class="pre">LoginRequest.model_config</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.auth_routes.LoginRequest.password"><code class="docutils literal notranslate"><span class="pre">LoginRequest.password</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#webserver.routes.auth_routes.LoginResponse"><code class="docutils literal notranslate"><span class="pre">LoginResponse</span></code></a><ul>
-<li><a class="reference internal" href="#webserver.routes.auth_routes.LoginResponse.expires_in"><code class="docutils literal notranslate"><span class="pre">LoginResponse.expires_in</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.auth_routes.LoginResponse.login"><code class="docutils literal notranslate"><span class="pre">LoginResponse.login</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.auth_routes.LoginResponse.model_config"><code class="docutils literal notranslate"><span class="pre">LoginResponse.model_config</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.auth_routes.LoginResponse.privilege"><code class="docutils literal notranslate"><span class="pre">LoginResponse.privilege</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.auth_routes.LoginResponse.token"><code class="docutils literal notranslate"><span class="pre">LoginResponse.token</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#webserver.routes.auth_routes.login"><code class="docutils literal notranslate"><span class="pre">login()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.auth_routes.logout"><code class="docutils literal notranslate"><span class="pre">logout()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.auth_routes.refresh_token"><code class="docutils literal notranslate"><span class="pre">refresh_token()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#module-webserver.routes.biometric_routes">webserver.routes.biometric_routes module</a><ul>
-<li><a class="reference internal" href="#webserver.routes.biometric_routes.identify"><code class="docutils literal notranslate"><span class="pre">identify()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.biometric_routes.set_globals"><code class="docutils literal notranslate"><span class="pre">set_globals()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.biometric_routes.verify"><code class="docutils literal notranslate"><span class="pre">verify()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#module-webserver.routes.user_routes">webserver.routes.user_routes module</a><ul>
-<li><a class="reference internal" href="#webserver.routes.user_routes.add_user"><code class="docutils literal notranslate"><span class="pre">add_user()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.user_routes.delete_all_users"><code class="docutils literal notranslate"><span class="pre">delete_all_users()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.user_routes.delete_user"><code class="docutils literal notranslate"><span class="pre">delete_user()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.user_routes.get_user"><code class="docutils literal notranslate"><span class="pre">get_user()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.user_routes.list_users"><code class="docutils literal notranslate"><span class="pre">list_users()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.user_routes.set_globals"><code class="docutils literal notranslate"><span class="pre">set_globals()</span></code></a></li>
-<li><a class="reference internal" href="#webserver.routes.user_routes.update_user"><code class="docutils literal notranslate"><span class="pre">update_user()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#module-webserver.routes">Module contents</a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.html#module-webserver.auth">webserver.auth module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.html#module-webserver.biometric_worker">webserver.biometric_worker module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.html#module-webserver.config">webserver.config module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.html#module-webserver.database">webserver.database module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.html#module-webserver.jobs">webserver.jobs module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.html#module-webserver.logger">webserver.logger module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.html#module-webserver.server">webserver.server module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="webserver.html#module-webserver">Module contents</a></li>
 </ul>
 </li>
 </ul>
-</div>
+</li>
+</ul>
+
         </div>
       </div>
     </nav>
@@ -110,6 +87,8 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">src</a></li>
+          <li class="breadcrumb-item"><a href="webserver.html">webserver package</a></li>
       <li class="breadcrumb-item active">webserver.routes package</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/webserver.routes.rst.txt" rel="nofollow"> View page source</a>
@@ -619,12 +598,14 @@ CRUD operations for fingerprint users.</p>
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="webserver.html" class="btn btn-neutral float-left" title="webserver package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2025, Daniel Barreiros.</p>
+    <p>&#169; Copyright 2025, Daniel Barreiros, David Pereira.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
