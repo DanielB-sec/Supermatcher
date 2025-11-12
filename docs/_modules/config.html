@@ -1,0 +1,395 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>config &mdash; Supermatcher 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Supermatcher
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Supermatcher</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Module code</a></li>
+      <li class="breadcrumb-item active">config</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for config</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Configuration file for Supermatcher v1.0 (Hybrid)</span>
+
+<span class="sd">This module contains all configurable parameters for the fingerprint matching system.</span>
+
+<span class="sd">Modify these values to tune the system behavior without changing the core code.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">cv2</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># HARDWARE CONFIGURATION</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># CPU affinity for P-cores (adjust based on your CPU architecture)</span>
+<span class="c1"># Example: For Intel 12th gen with 8 P-cores + 8 E-cores, use range(0, 16) for P-cores only</span>
+<span class="n">PCORES</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">12</span><span class="p">))</span>  <span class="c1"># Default: first 12 cores (P-cores)</span>
+<span class="n">PCORES_AFFINITY</span> <span class="o">=</span> <span class="n">PCORES</span>  <span class="c1"># Alias for compatibility</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># FILE PATHS AND EXTENSIONS</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="n">SCRIPT_DIR</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">parent</span>
+<span class="n">DEFAULT_TEMPLATE_PATH</span> <span class="o">=</span> <span class="n">SCRIPT_DIR</span> <span class="o">/</span> <span class="s2">&quot;templates&quot;</span>  <span class="c1"># Default templates directory</span>
+<span class="n">IMAGE_EXTENSIONS</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;.bmp&quot;</span><span class="p">,</span> <span class="s2">&quot;.png&quot;</span><span class="p">,</span> <span class="s2">&quot;.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;.jpeg&quot;</span><span class="p">,</span> <span class="s2">&quot;.tif&quot;</span><span class="p">,</span> <span class="s2">&quot;.tiff&quot;</span><span class="p">}</span>  <span class="c1"># Supported image formats</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># QUALITY THRESHOLDS</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Minimum quality score for templates (0.0-1.0)</span>
+<span class="c1"># Lower = more permissive, higher = more strict</span>
+<span class="n">QUALITY_THRESHOLD</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.30</span>  <span class="c1"># Production default from benchmark</span>
+<span class="n">DEFAULT_QUALITY_THRESHOLD</span> <span class="o">=</span> <span class="n">QUALITY_THRESHOLD</span>  <span class="c1"># Alias</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># HASHER CONFIGURATION (CancelableHasher)</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Feature vector dimension (input to hasher)</span>
+<span class="n">HASHER_FEATURE_DIM</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">736</span>
+
+<span class="c1"># Projection dimension (LSH output size)</span>
+<span class="n">HASHER_PROJECTION_DIM</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">512</span>
+
+<span class="c1"># Hasher key (must match existing templates if loading pre-built ones!)</span>
+<span class="n">HASHER_KEY</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span>
+
+<span class="c1"># Number of hash functions (must match existing templates!)</span>
+<span class="n">HASHER_HASH_COUNT</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span>  <span class="c1"># v0.5.1 default</span>
+
+<span class="c1"># Aliases for backward compatibility</span>
+<span class="n">HASH_FEATURE_DIM</span> <span class="o">=</span> <span class="n">HASHER_FEATURE_DIM</span>
+<span class="n">HASH_PROJECTION_DIM</span> <span class="o">=</span> <span class="n">HASHER_PROJECTION_DIM</span>
+<span class="n">HASH_KEY</span> <span class="o">=</span> <span class="n">HASHER_KEY</span>
+<span class="n">HASH_COUNT</span> <span class="o">=</span> <span class="n">HASHER_HASH_COUNT</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># FUSION SETTINGS</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="FusionConfig">
+<a class="viewcode-back" href="../config.html#config.FusionConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">FusionConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for template fusion.&quot;&quot;&quot;</span>
+    <span class="n">enabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">12.0</span>  <span class="c1"># Spatial threshold for minutiae consensus (pixels)</span>
+    <span class="n">angle_deg</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">15.0</span>  <span class="c1"># Angular threshold for minutiae consensus (degrees)</span>
+    <span class="n">min_consensus</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span>  <span class="c1"># Minimum consensus ratio (0.0-1.0)</span>
+    <span class="n">keep_raw</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># Keep raw templates after fusion</span>
+    <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;optimal&quot;</span>  <span class="c1"># Fusion mode: &quot;optimal&quot; or other</span></div>
+
+
+<span class="c1"># Default fusion settings</span>
+<span class="n">DEFAULT_FUSION</span> <span class="o">=</span> <span class="n">FusionConfig</span><span class="p">()</span>
+
+<span class="c1"># Fusion algorithm parameters (v0.5.1 compatibility)</span>
+<span class="n">FUSION_MIN_QUALITY</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>  <span class="c1"># Minimum quality threshold for fusion</span>
+<span class="n">FUSION_ALIGNMENT_THRESHOLD</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">15.0</span>  <span class="c1"># Alignment threshold (pixels)</span>
+<span class="n">FUSION_MINUTIAE_CLUSTER_RADIUS</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">8.0</span>  <span class="c1"># Clustering radius (pixels)</span>
+<span class="n">FUSION_ANGLE_TOLERANCE</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3490658504</span>  <span class="c1"># math.radians(20.0)</span>
+<span class="n">FUSION_RANSAC_ITERATIONS</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span>  <span class="c1"># RANSAC max iterations</span>
+<span class="n">FUSION_RANSAC_THRESHOLD</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span>  <span class="c1"># RANSAC inlier threshold (pixels)</span>
+<span class="n">DEFAULT_FUSION_MIN_CONSENSUS</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.4</span>  <span class="c1"># Default minimum consensus ratio</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># MATCHING CONFIGURATION</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Hash vs Geometric weighting (must sum to 1.0)</span>
+<span class="c1"># Optimized via mathematical optimization (Differential Evolution + L-BFGS-B)</span>
+<span class="c1"># Dataset: 80 probes vs 10 fused templates (benchmark_v1_0)</span>
+<span class="c1"># Result: Rank-1: 78.75%, Rank-5: 90.00%</span>
+<span class="n">HASH_WEIGHT</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.9269</span>  <span class="c1"># Hash matching weight (optimized from 0.6)</span>
+<span class="n">GEOMETRIC_WEIGHT</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0731</span>  <span class="c1"># Geometric matching weight (optimized from 0.4)</span>
+
+<span class="c1"># Geometric matching thresholds (RANSAC)</span>
+<span class="n">MATCH_DISTANCE_THRESHOLD</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">12.0</span>  <span class="c1"># Spatial threshold for minutiae correspondence (pixels)</span>
+<span class="n">MATCH_ANGLE_THRESHOLD_DEG</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">15.0</span>  <span class="c1"># Angular threshold (degrees)</span>
+<span class="n">MATCH_ANGLE_THRESHOLD_RAD</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2617</span>  <span class="c1"># Angular threshold (radians, ~15 degrees)</span>
+
+<span class="c1"># RANSAC parameters</span>
+<span class="n">RANSAC_SPATIAL_THRESHOLD</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">18.0</span>  <span class="c1"># Spatial inlier threshold (pixels)</span>
+<span class="n">RANSAC_ANGULAR_THRESHOLD_DEG</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">25.0</span>  <span class="c1"># Angular inlier threshold (degrees)</span>
+<span class="n">RANSAC_MIN_INLIERS</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span>  <span class="c1"># Minimum inliers for valid transformation</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># ADAPTIVE THRESHOLDS (Verification)</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Base threshold for verification matching</span>
+<span class="n">BASE_VERIFICATION_THRESHOLD</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.82</span>  <span class="c1"># Production value from benchmark (was 0.83, lowered to 0.82)</span>
+
+<span class="c1"># Adaptive threshold adjustments based on quality</span>
+<span class="c1"># High quality (&gt;0.7): use base_threshold</span>
+<span class="c1"># Medium quality (0.5-0.7): base_threshold - 0.02</span>
+<span class="c1"># Low quality (&lt;0.5): base_threshold - 0.05</span>
+<span class="n">ADAPTIVE_THRESHOLD_HIGH_QUALITY</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span>  <span class="c1"># Quality threshold for high tier</span>
+<span class="n">ADAPTIVE_THRESHOLD_MEDIUM_QUALITY</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span>  <span class="c1"># Quality threshold for medium tier</span>
+<span class="n">ADAPTIVE_THRESHOLD_HIGH_ADJUSTMENT</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>  <span class="c1"># No adjustment for high quality</span>
+<span class="n">ADAPTIVE_THRESHOLD_MEDIUM_ADJUSTMENT</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.02</span>  <span class="c1"># Slight relaxation for medium</span>
+<span class="n">ADAPTIVE_THRESHOLD_LOW_ADJUSTMENT</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.05</span>  <span class="c1"># More relaxation for low quality</span>
+
+<span class="c1"># Identification threshold (1:N matching)</span>
+<span class="c1"># NOTE: In identification, we use ranking, so threshold is less critical</span>
+<span class="n">IDENTIFICATION_THRESHOLD</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.70</span>  <span class="c1"># Minimum score to consider a match</span>
+<span class="n">MATCH_MIN_SCORE</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.82</span>  <span class="c1"># Minimum match score for verification (v0.7 default)</span>
+
+<span class="c1"># Tie detection threshold (for geometric reranking activation)</span>
+<span class="c1"># Optimized via mathematical optimization (Differential Evolution + L-BFGS-B)</span>
+<span class="c1"># If top 2 scores differ by less than this, use geometric reranking</span>
+<span class="n">TIE_THRESHOLD</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0296</span>  <span class="c1"># Optimized from 0.0050</span>
+<span class="n">GEOMETRIC_RERANKING_TIE_THRESHOLD</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0296</span>  <span class="c1"># Alias for TIE_THRESHOLD</span>
+<span class="n">GEOMETRIC_RERANKING_SCORE_DIFF_THRESHOLD</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.03</span>  <span class="c1"># Score difference threshold for reranking</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># IMAGE PREPROCESSING</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Normalization parameters</span>
+<span class="n">NORMALISE_MEAN</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">100.0</span>  <span class="c1"># Target mean value</span>
+<span class="n">NORMALISE_STD</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">20.0</span>  <span class="c1"># Target standard deviation</span>
+
+<span class="c1"># Segmentation parameters</span>
+<span class="n">SEGMENTATION_BLOCK_SIZE</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span>  <span class="c1"># Block size for variance-based segmentation</span>
+<span class="n">SEGMENTATION_VARIANCE_THRESHOLD</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">70.0</span>  <span class="c1"># Variance threshold for foreground detection (v0.5.1 = 70.0)</span>
+
+<span class="c1"># Coherence diffusion parameters</span>
+<span class="n">COHERENCE_ITERATIONS</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">12</span>  <span class="c1"># Number of diffusion iterations (v0.5.1 compatibility)</span>
+<span class="n">COHERENCE_KAPPA</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span>  <span class="c1"># Diffusion strength</span>
+<span class="n">COHERENCE_GAMMA</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span>  <span class="c1"># Edge sensitivity</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># FEATURE EXTRACTION</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Orientation estimation</span>
+<span class="n">ORIENTATION_BLOCK_SIZE</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span>  <span class="c1"># Block size for orientation estimation</span>
+<span class="n">ORIENTATION_SMOOTH_SIGMA</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">7.0</span>  <span class="c1"># Gaussian smoothing for orientation field</span>
+
+<span class="c1"># Frequency estimation</span>
+<span class="n">FREQUENCY_BLOCK_SIZE</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span>  <span class="c1"># Block size for frequency estimation</span>
+<span class="n">FREQUENCY_MIN</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="mf">25.0</span>  <span class="c1"># Minimum ridge frequency (1/wavelength)</span>
+<span class="n">FREQUENCY_MAX</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="mf">3.0</span>  <span class="c1"># Maximum ridge frequency</span>
+
+<span class="c1"># Log-Gabor filter parameters</span>
+<span class="n">LOG_GABOR_KERNEL_SIZE</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">65</span>  <span class="c1"># Kernel size (must be odd)</span>
+<span class="n">LOG_GABOR_SIGMA_ONEF</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.65</span>  <span class="c1"># Frequency bandwidth</span>
+
+<span class="c1"># Binarization</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">cv2</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_cv2</span>
+<span class="n">BINARISATION_METHOD</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">_cv2</span><span class="o">.</span><span class="n">THRESH_BINARY</span> <span class="o">+</span> <span class="n">_cv2</span><span class="o">.</span><span class="n">THRESH_OTSU</span>  <span class="c1"># Automatic threshold with Otsu&#39;s method</span>
+
+<span class="c1"># Thinning</span>
+<span class="n">THINNING_MAX_ITER</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">40</span>  <span class="c1"># Maximum iterations for Zhang-Suen thinning</span>
+
+<span class="c1"># Minutiae extraction</span>
+<span class="n">MIN_MINUTIAE_QUALITY</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>  <span class="c1"># Minimum quality for a valid minutia</span>
+<span class="n">MAX_MINUTIAE_ENCODER</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">120</span>  <span class="c1"># Maximum minutiae to encode in feature vector (v0.5.1 compatibility!)</span>
+<span class="n">MINUTIAE_BORDER_MARGIN</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span>  <span class="c1"># Minimum distance from border (pixels) - v0.5.1 compatibility</span>
+<span class="n">MINUTIA_PAIR_DISTANCE</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">12.0</span>  <span class="c1"># Minimum distance between minutiae of same type (v0.5.1)</span>
+
+<span class="c1"># Feature vector dimensions (v0.5.1 compatibility)</span>
+<span class="n">FEATURE_VECTOR_DIM</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">736</span>  <span class="c1"># Total feature vector dimension</span>
+<span class="n">MINUTIA_FEATURE_SIZE</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span>  <span class="c1"># (x, y, angle, quality, type) per minutia</span>
+<span class="n">ORI_HIST_BINS</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span>  <span class="c1"># Orientation histogram bins</span>
+<span class="n">FREQ_HIST_BINS</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">24</span>  <span class="c1"># Frequency histogram bins</span>
+
+<span class="c1"># Gabor kernel configuration for texture extraction</span>
+<span class="n">GABOR_KERNEL_CONFIG</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="p">{</span><span class="s2">&quot;ksize&quot;</span><span class="p">:</span> <span class="mi">21</span><span class="p">,</span> <span class="s2">&quot;sigma&quot;</span><span class="p">:</span> <span class="mf">3.0</span><span class="p">,</span> <span class="s2">&quot;theta&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s2">&quot;lambd&quot;</span><span class="p">:</span> <span class="mf">7.0</span><span class="p">,</span> <span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="mf">0.6</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;ksize&quot;</span><span class="p">:</span> <span class="mi">21</span><span class="p">,</span> <span class="s2">&quot;sigma&quot;</span><span class="p">:</span> <span class="mf">3.0</span><span class="p">,</span> <span class="s2">&quot;theta&quot;</span><span class="p">:</span> <span class="mf">3.14159265359</span> <span class="o">/</span> <span class="mf">4.0</span><span class="p">,</span> <span class="s2">&quot;lambd&quot;</span><span class="p">:</span> <span class="mf">7.0</span><span class="p">,</span> <span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="mf">0.6</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;ksize&quot;</span><span class="p">:</span> <span class="mi">21</span><span class="p">,</span> <span class="s2">&quot;sigma&quot;</span><span class="p">:</span> <span class="mf">3.0</span><span class="p">,</span> <span class="s2">&quot;theta&quot;</span><span class="p">:</span> <span class="mf">3.14159265359</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">,</span> <span class="s2">&quot;lambd&quot;</span><span class="p">:</span> <span class="mf">7.0</span><span class="p">,</span> <span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="mf">0.6</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;ksize&quot;</span><span class="p">:</span> <span class="mi">21</span><span class="p">,</span> <span class="s2">&quot;sigma&quot;</span><span class="p">:</span> <span class="mf">3.0</span><span class="p">,</span> <span class="s2">&quot;theta&quot;</span><span class="p">:</span> <span class="mf">3.0</span> <span class="o">*</span> <span class="mf">3.14159265359</span> <span class="o">/</span> <span class="mf">4.0</span><span class="p">,</span> <span class="s2">&quot;lambd&quot;</span><span class="p">:</span> <span class="mf">7.0</span><span class="p">,</span> <span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="mf">0.6</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;ksize&quot;</span><span class="p">:</span> <span class="mi">31</span><span class="p">,</span> <span class="s2">&quot;sigma&quot;</span><span class="p">:</span> <span class="mf">4.5</span><span class="p">,</span> <span class="s2">&quot;theta&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s2">&quot;lambd&quot;</span><span class="p">:</span> <span class="mf">11.0</span><span class="p">,</span> <span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;ksize&quot;</span><span class="p">:</span> <span class="mi">31</span><span class="p">,</span> <span class="s2">&quot;sigma&quot;</span><span class="p">:</span> <span class="mf">4.5</span><span class="p">,</span> <span class="s2">&quot;theta&quot;</span><span class="p">:</span> <span class="mf">3.14159265359</span> <span class="o">/</span> <span class="mf">4.0</span><span class="p">,</span> <span class="s2">&quot;lambd&quot;</span><span class="p">:</span> <span class="mf">11.0</span><span class="p">,</span> <span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;ksize&quot;</span><span class="p">:</span> <span class="mi">31</span><span class="p">,</span> <span class="s2">&quot;sigma&quot;</span><span class="p">:</span> <span class="mf">4.5</span><span class="p">,</span> <span class="s2">&quot;theta&quot;</span><span class="p">:</span> <span class="mf">3.14159265359</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">,</span> <span class="s2">&quot;lambd&quot;</span><span class="p">:</span> <span class="mf">11.0</span><span class="p">,</span> <span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;ksize&quot;</span><span class="p">:</span> <span class="mi">31</span><span class="p">,</span> <span class="s2">&quot;sigma&quot;</span><span class="p">:</span> <span class="mf">4.5</span><span class="p">,</span> <span class="s2">&quot;theta&quot;</span><span class="p">:</span> <span class="mf">3.0</span> <span class="o">*</span> <span class="mf">3.14159265359</span> <span class="o">/</span> <span class="mf">4.0</span><span class="p">,</span> <span class="s2">&quot;lambd&quot;</span><span class="p">:</span> <span class="mf">11.0</span><span class="p">,</span> <span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">},</span>
+<span class="p">)</span>
+
+<span class="c1"># Pre-computed Gabor kernels (generated from GABOR_KERNEL_CONFIG)</span>
+<span class="n">GABOR_KERNELS</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+    <span class="n">cv2</span><span class="o">.</span><span class="n">getGaborKernel</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;ksize&quot;</span><span class="p">],</span> <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;ksize&quot;</span><span class="p">]),</span>
+        <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;sigma&quot;</span><span class="p">],</span>
+        <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;theta&quot;</span><span class="p">],</span>
+        <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;lambd&quot;</span><span class="p">],</span>
+        <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;gamma&quot;</span><span class="p">],</span>
+        <span class="n">psi</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">ktype</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">CV_32F</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">for</span> <span class="n">cfg</span> <span class="ow">in</span> <span class="n">GABOR_KERNEL_CONFIG</span>
+<span class="p">)</span>
+
+<span class="c1"># Level-3 features (pores) - if enabled</span>
+<span class="n">PORE_MIN_RADIUS</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>  <span class="c1"># Minimum pore radius (pixels)</span>
+<span class="n">PORE_MAX_RADIUS</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">4.0</span>  <span class="c1"># Maximum pore radius (pixels)</span>
+<span class="n">PORE_MIN_STRENGTH</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>  <span class="c1"># Minimum detection strength</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># TEMPLATE STORAGE</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Template file extension</span>
+<span class="n">TEMPLATE_EXTENSION</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;.fpt&quot;</span>  <span class="c1"># Fingerprint template (pickle format)</span>
+
+<span class="c1"># Template naming convention for fused templates</span>
+<span class="n">FUSED_TEMPLATE_SUFFIX</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;__fused&quot;</span>  <span class="c1"># Suffix for fused master templates</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># FEATURE VECTOR CONSTRUCTION</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Consensus weighting for feature vectors (used in fusion)</span>
+<span class="n">USE_CONSENSUS_WEIGHTING</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+
+<span class="c1"># Feature vector components and weights (used in quality assessment)</span>
+<span class="n">QUALITY_WEIGHT_MINUTIAE</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.23</span>
+<span class="n">QUALITY_WEIGHT_FOREGROUND</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.20</span>
+<span class="n">QUALITY_WEIGHT_SKELETON</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.14</span>
+<span class="n">QUALITY_WEIGHT_ORIENTATION</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.14</span>
+<span class="n">QUALITY_WEIGHT_FREQUENCY</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.10</span>
+<span class="n">QUALITY_WEIGHT_CONTRAST</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.09</span>
+<span class="n">QUALITY_WEIGHT_DIFFUSED</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span>
+<span class="n">QUALITY_WEIGHT_LEVEL3</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span>  <span class="c1"># If level-3 features enabled</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># LOGGING AND DEBUG</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Silent mode (suppress verbose geometric reranking logs)</span>
+<span class="n">SILENT_MODE</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># Set to True to suppress logs</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># VALIDATION</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="validate_config">
+<a class="viewcode-back" href="../config.html#config.validate_config">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">validate_config</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Validate configuration consistency.&quot;&quot;&quot;</span>
+    <span class="n">errors</span> <span class="o">=</span> <span class="p">[]</span>
+    
+    <span class="c1"># Check weight sum</span>
+    <span class="n">weight_sum</span> <span class="o">=</span> <span class="n">HASH_WEIGHT</span> <span class="o">+</span> <span class="n">GEOMETRIC_WEIGHT</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mf">0.99</span> <span class="o">&lt;=</span> <span class="n">weight_sum</span> <span class="o">&lt;=</span> <span class="mf">1.01</span><span class="p">):</span>
+        <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;HASH_WEIGHT + GEOMETRIC_WEIGHT must sum to 1.0 (got </span><span class="si">{</span><span class="n">weight_sum</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Check thresholds</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mf">0.0</span> <span class="o">&lt;=</span> <span class="n">QUALITY_THRESHOLD</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">):</span>
+        <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;QUALITY_THRESHOLD must be in [0.0, 1.0] (got </span><span class="si">{</span><span class="n">QUALITY_THRESHOLD</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mf">0.0</span> <span class="o">&lt;=</span> <span class="n">BASE_VERIFICATION_THRESHOLD</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">):</span>
+        <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;BASE_VERIFICATION_THRESHOLD must be in [0.0, 1.0] (got </span><span class="si">{</span><span class="n">BASE_VERIFICATION_THRESHOLD</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Check hasher config</span>
+    <span class="k">if</span> <span class="n">HASHER_FEATURE_DIM</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;HASHER_FEATURE_DIM must be positive (got </span><span class="si">{</span><span class="n">HASHER_FEATURE_DIM</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">HASHER_PROJECTION_DIM</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;HASHER_PROJECTION_DIM must be positive (got </span><span class="si">{</span><span class="n">HASHER_PROJECTION_DIM</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">HASHER_HASH_COUNT</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;HASHER_HASH_COUNT must be positive (got </span><span class="si">{</span><span class="n">HASHER_HASH_COUNT</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">errors</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Configuration validation failed:</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">errors</span><span class="p">))</span></div>
+
+
+<span class="c1"># Run validation on import</span>
+<span class="n">validate_config</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barreiros.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

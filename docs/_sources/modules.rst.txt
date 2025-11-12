@@ -1,0 +1,15 @@
+src
+===
+
+.. toctree::
+   :maxdepth: 4
+
+   config
+   extractor
+   matching
+   models
+   models_serialization
+   preprocessing
+   supermatcher_v1_0
+   template_creation
+   webserver

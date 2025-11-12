@@ -1,0 +1,345 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>webserver.config &mdash; Supermatcher 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Supermatcher
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Supermatcher</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">webserver.config</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for webserver.config</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">WebServer Configuration</span>
+
+<span class="sd">Centralized configuration for the biometric webserver.</span>
+<span class="sd">All settings, including paths, server parameters, authentication, security, biometric thresholds, multiprocessing, background jobs, and cache, are defined here for easy adjustment without modifying the source code. Helper functions are provided for secure key management and directory setup.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># PATHS</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Project root and paths</span>
+<span class="n">PROJECT_ROOT</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">parent</span>
+<span class="n">WEBSERVER_ROOT</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span>
+<span class="n">FRONTEND_PATH</span> <span class="o">=</span> <span class="n">WEBSERVER_ROOT</span> <span class="o">/</span> <span class="s2">&quot;frontend&quot;</span>
+
+<span class="c1"># Database</span>
+<span class="n">DB_PATH</span> <span class="o">=</span> <span class="n">PROJECT_ROOT</span> <span class="o">/</span> <span class="s2">&quot;biometric_system.db&quot;</span>
+<span class="n">DB_ENCRYPTION_KEY</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Auto-generated on first run, stored in .db_key file</span>
+<span class="n">DB_KEY_FILE</span> <span class="o">=</span> <span class="n">PROJECT_ROOT</span> <span class="o">/</span> <span class="s2">&quot;.db_key&quot;</span>
+
+<span class="c1"># SSL Certificates</span>
+<span class="n">SSL_CERT_DIR</span> <span class="o">=</span> <span class="n">PROJECT_ROOT</span> <span class="o">/</span> <span class="s2">&quot;certs&quot;</span>
+<span class="n">SSL_CERT_FILE</span> <span class="o">=</span> <span class="n">SSL_CERT_DIR</span> <span class="o">/</span> <span class="s2">&quot;cert.pem&quot;</span>
+<span class="n">SSL_KEY_FILE</span> <span class="o">=</span> <span class="n">SSL_CERT_DIR</span> <span class="o">/</span> <span class="s2">&quot;key.pem&quot;</span>
+
+<span class="c1"># Logs</span>
+<span class="n">LOG_DIR</span> <span class="o">=</span> <span class="n">PROJECT_ROOT</span> <span class="o">/</span> <span class="s2">&quot;logs&quot;</span>
+<span class="n">LOG_ACCESS</span> <span class="o">=</span> <span class="n">LOG_DIR</span> <span class="o">/</span> <span class="s2">&quot;access.log&quot;</span>
+<span class="n">LOG_AUTH</span> <span class="o">=</span> <span class="n">LOG_DIR</span> <span class="o">/</span> <span class="s2">&quot;auth.log&quot;</span>
+<span class="n">LOG_BIOMETRIC</span> <span class="o">=</span> <span class="n">LOG_DIR</span> <span class="o">/</span> <span class="s2">&quot;biometric.log&quot;</span>
+<span class="n">LOG_ERROR</span> <span class="o">=</span> <span class="n">LOG_DIR</span> <span class="o">/</span> <span class="s2">&quot;error.log&quot;</span>
+<span class="n">LOG_MAX_BYTES</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>  <span class="c1"># 10MB per file</span>
+<span class="n">LOG_BACKUP_COUNT</span> <span class="o">=</span> <span class="mi">5</span>  <span class="c1"># Keep 5 backup files</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># SERVER CONFIGURATION</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Network</span>
+<span class="n">HOST</span> <span class="o">=</span> <span class="s2">&quot;0.0.0.0&quot;</span>
+<span class="n">PORT_HTTPS</span> <span class="o">=</span> <span class="mi">8443</span>
+<span class="n">PORT_HTTP</span> <span class="o">=</span> <span class="mi">8080</span>  <span class="c1"># Fallback if SSL fails</span>
+
+<span class="c1"># CORS</span>
+<span class="n">CORS_ORIGINS</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;*&quot;</span><span class="p">]</span>  <span class="c1"># Allow all origins (adjust for production)</span>
+<span class="n">CORS_ALLOW_CREDENTIALS</span> <span class="o">=</span> <span class="kc">True</span>
+
+<span class="c1"># Request limits</span>
+<span class="n">MAX_REQUEST_SIZE</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>  <span class="c1"># 100MB (for large fingerprint batches)</span>
+<span class="n">REQUEST_TIMEOUT</span> <span class="o">=</span> <span class="mi">300</span>  <span class="c1"># 5 minutes for long operations</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># AUTHENTICATION &amp; SECURITY</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># JWT</span>
+<span class="n">JWT_SECRET_KEY</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Auto-generated on first run, stored in .jwt_secret file</span>
+<span class="n">JWT_SECRET_FILE</span> <span class="o">=</span> <span class="n">PROJECT_ROOT</span> <span class="o">/</span> <span class="s2">&quot;.jwt_secret&quot;</span>
+<span class="n">JWT_ALGORITHM</span> <span class="o">=</span> <span class="s2">&quot;HS256&quot;</span>
+<span class="n">JWT_EXPIRY_ADMIN_HOURS</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># Admin tokens expire in 1 hour</span>
+<span class="n">JWT_EXPIRY_ENDPOINT_HOURS</span> <span class="o">=</span> <span class="mi">12</span>  <span class="c1"># Endpoint tokens expire in 12 hours</span>
+
+<span class="c1"># Password requirements</span>
+<span class="n">PASSWORD_MIN_LENGTH</span> <span class="o">=</span> <span class="mi">6</span>
+<span class="n">PASSWORD_REQUIRE_UPPERCASE</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="n">PASSWORD_REQUIRE_LOWERCASE</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="n">PASSWORD_REQUIRE_DIGIT</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="n">PASSWORD_REQUIRE_SPECIAL</span> <span class="o">=</span> <span class="kc">False</span>
+
+<span class="c1"># Privileges</span>
+<span class="n">PRIVILEGE_ADMIN</span> <span class="o">=</span> <span class="s2">&quot;admin&quot;</span>
+<span class="n">PRIVILEGE_ENDPOINT</span> <span class="o">=</span> <span class="s2">&quot;endpoint&quot;</span>
+
+<span class="c1"># Rate Limiting (requests, seconds)</span>
+<span class="c1"># Format: (max_requests, time_window_seconds)</span>
+<span class="n">RATE_LIMITS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;login&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">300</span><span class="p">),</span>          <span class="c1"># 5 attempts per 5 minutes</span>
+    <span class="s2">&quot;verify&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">60</span><span class="p">),</span>         <span class="c1"># 10 verifications per minute</span>
+    <span class="s2">&quot;identify&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">60</span><span class="p">),</span>        <span class="c1"># 5 identifications per minute</span>
+    <span class="s2">&quot;enroll&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">3600</span><span class="p">),</span>       <span class="c1"># 20 enrollments per hour</span>
+    <span class="s2">&quot;update&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3600</span><span class="p">),</span>       <span class="c1"># 10 updates per hour</span>
+    <span class="s2">&quot;delete&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">3600</span><span class="p">),</span>       <span class="c1"># 30 deletes per hour</span>
+    <span class="s2">&quot;load_folder&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3600</span><span class="p">),</span>   <span class="c1"># 2 folder loads per hour</span>
+    <span class="s2">&quot;list_users&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">60</span><span class="p">,</span> <span class="mi">60</span><span class="p">),</span>     <span class="c1"># 60 lists per minute</span>
+<span class="p">}</span>
+
+<span class="c1"># Account lockout</span>
+<span class="n">MAX_LOGIN_ATTEMPTS</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="n">LOCKOUT_DURATION_MINUTES</span> <span class="o">=</span> <span class="mi">15</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># BIOMETRIC CONFIGURATION</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Thresholds (adjusted based on benchmark_production_v1_0)</span>
+<span class="n">QUALITY_THRESHOLD</span> <span class="o">=</span> <span class="mf">0.30</span>  <span class="c1"># Minimum quality for enrollment</span>
+<span class="n">VERIFICATION_THRESHOLD</span> <span class="o">=</span> <span class="mf">0.75</span>  <span class="c1"># 1:1 matching threshold (combined hash+geometric score)</span>
+<span class="n">IDENTIFICATION_THRESHOLD</span> <span class="o">=</span> <span class="mf">0.70</span>  <span class="c1"># 1:N matching threshold (combined hash+geometric score)</span>
+
+<span class="c1"># Enrollment</span>
+<span class="n">MIN_SAMPLES_PER_USER</span> <span class="o">=</span> <span class="mi">2</span>  <span class="c1"># Minimum images for enrollment</span>
+<span class="n">MAX_SAMPLES_PER_USER</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># Maximum images for enrollment</span>
+<span class="n">RECOMMENDED_SAMPLES</span> <span class="o">=</span> <span class="mi">5</span>  <span class="c1"># Recommended number of samples</span>
+
+<span class="c1"># Fusion settings (from supermatcher v1.0 FusionSettings)</span>
+<span class="n">FUSION_ENABLED</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="n">FUSION_DISTANCE</span> <span class="o">=</span> <span class="mf">12.0</span>
+<span class="n">FUSION_ANGLE_DEG</span> <span class="o">=</span> <span class="mf">15.0</span>
+<span class="n">FUSION_MIN_CONSENSUS</span> <span class="o">=</span> <span class="mf">0.5</span>
+<span class="n">FUSION_KEEP_RAW</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="n">FUSION_MODE</span> <span class="o">=</span> <span class="s2">&quot;optimal&quot;</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># MULTIPROCESSING</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># ProcessPool configuration</span>
+<span class="n">MAX_WORKERS</span> <span class="o">=</span> <span class="mi">4</span>  <span class="c1"># Number of parallel biometric operations</span>
+<span class="n">USE_CPU_AFFINITY</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="c1"># Intel hybrid CPU: 6 P-cores (0-5) with hyperthreading (0-11) + 8 E-cores (12-19)</span>
+<span class="c1"># Using only P-cores for maximum performance</span>
+<span class="n">PCORES</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">12</span><span class="p">))</span>  <span class="c1"># P-cores logical threads (6 physical P-cores)</span>
+
+<span class="c1"># Worker timeout</span>
+<span class="n">ENROLL_TIMEOUT</span> <span class="o">=</span> <span class="mi">120</span>  <span class="c1"># 2 minutes per enrollment</span>
+<span class="n">VERIFY_TIMEOUT</span> <span class="o">=</span> <span class="mi">30</span>  <span class="c1"># 30 seconds per verification</span>
+<span class="n">IDENTIFY_TIMEOUT</span> <span class="o">=</span> <span class="mi">60</span>  <span class="c1"># 1 minute per identification</span>
+<span class="n">LOAD_FOLDER_TIMEOUT</span> <span class="o">=</span> <span class="mi">3600</span>  <span class="c1"># 1 hour for folder loading</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># BACKGROUND JOBS</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Job cleanup</span>
+<span class="n">JOB_RETENTION_HOURS</span> <span class="o">=</span> <span class="mi">24</span>  <span class="c1"># Keep completed jobs for 24 hours</span>
+<span class="n">JOB_CHECK_INTERVAL</span> <span class="o">=</span> <span class="mi">60</span>  <span class="c1"># Check for stale jobs every minute</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># CACHE CONFIGURATION</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Template cache</span>
+<span class="n">CACHE_ENABLED</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="n">CACHE_RELOAD_ON_STARTUP</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># Load all templates into RAM on startup</span>
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># DEFAULT USERS</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="c1"># Default credentials (only used if DB doesn&#39;t exist)</span>
+<span class="n">DEFAULT_ADMIN_USER</span> <span class="o">=</span> <span class="s2">&quot;admin&quot;</span>
+<span class="n">DEFAULT_ADMIN_PASS</span> <span class="o">=</span> <span class="s2">&quot;admin123&quot;</span>
+<span class="n">DEFAULT_ENDPOINT_USER</span> <span class="o">=</span> <span class="s2">&quot;endpoint&quot;</span>
+<span class="n">DEFAULT_ENDPOINT_PASS</span> <span class="o">=</span> <span class="s2">&quot;endpoint123&quot;</span>
+
+<span class="c1"># Verbose output</span>
+<span class="n">VERBOSE</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># Set to False to reduce console output</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># HELPER FUNCTIONS</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="get_db_key">
+<a class="viewcode-back" href="../../webserver.html#webserver.config.get_db_key">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_db_key</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get or generate the database encryption key.</span>
+
+<span class="sd">    If the key file exists, reads and returns the key. Otherwise, generates a new secure key, saves it to the file system, and returns it.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str: The database encryption key.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">DB_KEY_FILE</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">return</span> <span class="n">DB_KEY_FILE</span><span class="o">.</span><span class="n">read_text</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    
+    <span class="c1"># Generate new key</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">secrets</span>
+    <span class="n">key</span> <span class="o">=</span> <span class="n">secrets</span><span class="o">.</span><span class="n">token_urlsafe</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span>
+    
+    <span class="c1"># Save key</span>
+    <span class="n">DB_KEY_FILE</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">DB_KEY_FILE</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+    <span class="n">DB_KEY_FILE</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="mo">0o600</span><span class="p">)</span>  <span class="c1"># Read/write for owner only</span>
+    
+    <span class="k">return</span> <span class="n">key</span></div>
+
+
+
+<div class="viewcode-block" id="get_jwt_secret">
+<a class="viewcode-back" href="../../webserver.html#webserver.config.get_jwt_secret">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_jwt_secret</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get or generate the JWT secret key for token signing.</span>
+
+<span class="sd">    If the secret file exists, reads and returns the secret. Otherwise, generates a new secure secret, saves it to the file system, and returns it.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str: The JWT secret key.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">JWT_SECRET_FILE</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">return</span> <span class="n">JWT_SECRET_FILE</span><span class="o">.</span><span class="n">read_text</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    
+    <span class="c1"># Generate new secret</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">secrets</span>
+    <span class="n">secret</span> <span class="o">=</span> <span class="n">secrets</span><span class="o">.</span><span class="n">token_urlsafe</span><span class="p">(</span><span class="mi">64</span><span class="p">)</span>
+    
+    <span class="c1"># Save secret</span>
+    <span class="n">JWT_SECRET_FILE</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">JWT_SECRET_FILE</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">secret</span><span class="p">)</span>
+    <span class="n">JWT_SECRET_FILE</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="mo">0o600</span><span class="p">)</span>  <span class="c1"># Read/write for owner only</span>
+    
+    <span class="k">return</span> <span class="n">secret</span></div>
+
+
+
+<div class="viewcode-block" id="ensure_directories">
+<a class="viewcode-back" href="../../webserver.html#webserver.config.ensure_directories">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ensure_directories</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Ensure all required directories for certificates, logs, and database exist.</span>
+
+<span class="sd">    Creates directories if they do not already exist.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">dirs</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">SSL_CERT_DIR</span><span class="p">,</span>
+        <span class="n">LOG_DIR</span><span class="p">,</span>
+        <span class="n">DB_PATH</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span>
+    <span class="p">]</span>
+    
+    <span class="k">for</span> <span class="n">directory</span> <span class="ow">in</span> <span class="n">dirs</span><span class="p">:</span>
+        <span class="n">directory</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># Auto-initialize on import</span>
+<span class="k">if</span> <span class="n">DB_ENCRYPTION_KEY</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">DB_ENCRYPTION_KEY</span> <span class="o">=</span> <span class="n">get_db_key</span><span class="p">()</span>
+
+<span class="k">if</span> <span class="n">JWT_SECRET_KEY</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">JWT_SECRET_KEY</span> <span class="o">=</span> <span class="n">get_jwt_secret</span><span class="p">()</span>
+
+<span class="n">ensure_directories</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barreiros.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

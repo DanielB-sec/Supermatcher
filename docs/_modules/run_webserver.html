@@ -1,0 +1,410 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>run_webserver &mdash; Supermatcher 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Supermatcher
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../run_webserver.html">run_webserver module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">src</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Supermatcher</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Module code</a></li>
+      <li class="breadcrumb-item active">run_webserver</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for run_webserver</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Run Webserver - Startup Script</span>
+
+<span class="sd">This script provides an interactive first-time setup for the Biometric Webserver and launches the server.</span>
+<span class="sd">It allows you to create initial admin and endpoint accounts, configure SSL, and start the webserver with the desired settings.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">getpass</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
+
+<span class="c1"># Add project root to path</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="p">))</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.webserver.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">DB_PATH</span><span class="p">,</span> <span class="n">PRIVILEGE_ADMIN</span><span class="p">,</span> <span class="n">PRIVILEGE_ENDPOINT</span><span class="p">,</span> <span class="n">HOST</span><span class="p">,</span> <span class="n">PORT_HTTPS</span><span class="p">,</span> <span class="n">PORT_HTTP</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.webserver.database</span><span class="w"> </span><span class="kn">import</span> <span class="n">BiometricDatabase</span>
+
+
+<div class="viewcode-block" id="first_time_setup">
+<a class="viewcode-back" href="../run_webserver.html#run_webserver.first_time_setup">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">first_time_setup</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Launches an interactive setup wizard for the first run of the Biometric Webserver.</span>
+
+<span class="sd">    Prompts the user to create admin and endpoint accounts, set passwords, and choose SSL options.</span>
+<span class="sd">    Initializes the database and creates the required users.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        tuple: (use_ssl, port) where use_ssl is a boolean indicating if HTTPS should be used,</span>
+<span class="sd">               and port is the selected port number.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">70</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;🔐 BIOMETRIC WEBSERVER - FIRST-TIME SETUP&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">70</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">()</span>
+    
+    <span class="c1"># Admin account</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Create ADMIN account:&quot;</span><span class="p">)</span>
+    <span class="n">admin_user</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;  Username [admin]: &quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">or</span> <span class="s2">&quot;admin&quot;</span>
+    
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">admin_pass</span> <span class="o">=</span> <span class="n">getpass</span><span class="o">.</span><span class="n">getpass</span><span class="p">(</span><span class="s2">&quot;  Password (min 8 chars): &quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">admin_pass</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">8</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  ⚠ Password too short!&quot;</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="n">admin_confirm</span> <span class="o">=</span> <span class="n">getpass</span><span class="o">.</span><span class="n">getpass</span><span class="p">(</span><span class="s2">&quot;  Confirm password: &quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">admin_pass</span> <span class="o">!=</span> <span class="n">admin_confirm</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  ⚠ Passwords don&#39;t match!&quot;</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="k">break</span>
+    
+    <span class="c1"># Endpoint account</span>
+    <span class="nb">print</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Create ENDPOINT account:&quot;</span><span class="p">)</span>
+    <span class="n">endpoint_user</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;  Username [endpoint]: &quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">or</span> <span class="s2">&quot;endpoint&quot;</span>
+    
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">endpoint_pass</span> <span class="o">=</span> <span class="n">getpass</span><span class="o">.</span><span class="n">getpass</span><span class="p">(</span><span class="s2">&quot;  Password (min 8 chars): &quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">endpoint_pass</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">8</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  ⚠ Password too short!&quot;</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="n">endpoint_confirm</span> <span class="o">=</span> <span class="n">getpass</span><span class="o">.</span><span class="n">getpass</span><span class="p">(</span><span class="s2">&quot;  Confirm password: &quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">endpoint_pass</span> <span class="o">!=</span> <span class="n">endpoint_confirm</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  ⚠ Passwords don&#39;t match!&quot;</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="k">break</span>
+    
+    <span class="c1"># SSL</span>
+    <span class="nb">print</span><span class="p">()</span>
+    <span class="n">use_ssl</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Use HTTPS with SSL? [Y/n]: &quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s1">&#39;n&#39;</span>
+    
+    <span class="n">port</span> <span class="o">=</span> <span class="n">PORT_HTTPS</span> <span class="k">if</span> <span class="n">use_ssl</span> <span class="k">else</span> <span class="n">PORT_HTTP</span>
+    <span class="n">port_input</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Port [</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s2">]: &quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">port_input</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">port</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">port_input</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ⚠ Invalid port, using default: </span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Create database and users</span>
+    <span class="nb">print</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Creating database...&quot;</span><span class="p">)</span>
+    <span class="n">db</span> <span class="o">=</span> <span class="n">BiometricDatabase</span><span class="p">()</span>
+    
+    <span class="n">db</span><span class="o">.</span><span class="n">create_auth_user</span><span class="p">(</span><span class="n">admin_user</span><span class="p">,</span> <span class="n">admin_pass</span><span class="p">,</span> <span class="n">PRIVILEGE_ADMIN</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ Admin user &#39;</span><span class="si">{</span><span class="n">admin_user</span><span class="si">}</span><span class="s2">&#39; created&quot;</span><span class="p">)</span>
+    
+    <span class="n">db</span><span class="o">.</span><span class="n">create_auth_user</span><span class="p">(</span><span class="n">endpoint_user</span><span class="p">,</span> <span class="n">endpoint_pass</span><span class="p">,</span> <span class="n">PRIVILEGE_ENDPOINT</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ Endpoint user &#39;</span><span class="si">{</span><span class="n">endpoint_user</span><span class="si">}</span><span class="s2">&#39; created&quot;</span><span class="p">)</span>
+    
+    <span class="n">db</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    
+    <span class="nb">print</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">70</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;✅ SETUP COMPLETE!&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">70</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">()</span>
+    
+    <span class="k">return</span> <span class="n">use_ssl</span><span class="p">,</span> <span class="n">port</span></div>
+
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../run_webserver.html#run_webserver.main">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Main entry point for starting the Biometric Webserver.</span>
+
+<span class="sd">    Handles command-line arguments for server configuration, checks if first-time setup is needed,</span>
+<span class="sd">    allows resetting the admin password, configures SSL certificates, and launches the server using uvicorn.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;Biometric WebServer&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--host&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">HOST</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Server host&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--port&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Server port&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--ssl&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Enable HTTPS/TLS&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--cert&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;SSL certificate file&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--key&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;SSL key file&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--reset-admin&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Reset admin password&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--workers&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of uvicorn workers&quot;</span><span class="p">)</span>
+    
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+    
+    <span class="c1"># Check if first run (check for auth users, not just DB existence)</span>
+    <span class="n">needs_setup</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">reset_admin</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">db</span> <span class="o">=</span> <span class="n">BiometricDatabase</span><span class="p">()</span>
+            <span class="n">stats</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">get_stats</span><span class="p">()</span>
+            <span class="n">db</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="c1"># Setup needed if no auth users exist</span>
+            <span class="k">if</span> <span class="n">stats</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;num_auth_users&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">needs_setup</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">needs_setup</span> <span class="o">=</span> <span class="kc">True</span>
+    
+    <span class="k">if</span> <span class="n">needs_setup</span><span class="p">:</span>
+        <span class="n">use_ssl</span><span class="p">,</span> <span class="n">port</span> <span class="o">=</span> <span class="n">first_time_setup</span><span class="p">()</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">ssl</span> <span class="o">=</span> <span class="n">use_ssl</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">port</span><span class="p">:</span>
+            <span class="n">args</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
+    
+    <span class="c1"># Reset admin password</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">reset_admin</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;🔄 RESET ADMIN PASSWORD&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">()</span>
+        
+        <span class="n">new_pass</span> <span class="o">=</span> <span class="n">getpass</span><span class="o">.</span><span class="n">getpass</span><span class="p">(</span><span class="s2">&quot;New admin password (min 8 chars): &quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_pass</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">8</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;⚠ Password too short!&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        
+        <span class="n">confirm</span> <span class="o">=</span> <span class="n">getpass</span><span class="o">.</span><span class="n">getpass</span><span class="p">(</span><span class="s2">&quot;Confirm password: &quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">new_pass</span> <span class="o">!=</span> <span class="n">confirm</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;⚠ Passwords don&#39;t match!&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        
+        <span class="n">db</span> <span class="o">=</span> <span class="n">BiometricDatabase</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">db</span><span class="o">.</span><span class="n">reset_admin_password</span><span class="p">(</span><span class="n">new_pass</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;✓ Admin password reset successfully!&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;✗ Failed to reset password!&quot;</span><span class="p">)</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span>
+    
+    <span class="c1"># Determine port</span>
+    <span class="n">port</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">port</span> <span class="ow">or</span> <span class="p">(</span><span class="n">PORT_HTTPS</span> <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">ssl</span> <span class="k">else</span> <span class="n">PORT_HTTP</span><span class="p">)</span>
+    
+    <span class="c1"># Print startup info</span>
+    <span class="nb">print</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">70</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;STARTING BIOMETRIC WEBSERVER&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">70</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">()</span>
+    
+    <span class="c1"># SSL configuration</span>
+    <span class="n">ssl_keyfile</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">ssl_certfile</span> <span class="o">=</span> <span class="kc">None</span>
+    
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">ssl</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">cert</span> <span class="ow">and</span> <span class="n">args</span><span class="o">.</span><span class="n">key</span><span class="p">:</span>
+            <span class="n">ssl_certfile</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">cert</span>
+            <span class="n">ssl_keyfile</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">key</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;🔒 HTTPS enabled with custom certificate&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Generate self-signed certificate</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;⚠ No SSL certificate provided, generating self-signed certificate...&quot;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">ssl_certfile</span><span class="p">,</span> <span class="n">ssl_keyfile</span> <span class="o">=</span> <span class="n">generate_self_signed_cert</span><span class="p">()</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ Self-signed certificate generated&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ⚠ Browser will show security warning (normal for self-signed certs)&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✗ Failed to generate certificate: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Falling back to HTTP...&quot;</span><span class="p">)</span>
+                <span class="n">args</span><span class="o">.</span><span class="n">ssl</span> <span class="o">=</span> <span class="kc">False</span>
+    
+    <span class="c1"># Start server with uvicorn</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">uvicorn</span>
+    
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">🚀 Server starting on </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   Protocol: </span><span class="si">{</span><span class="s1">&#39;HTTPS&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">args</span><span class="o">.</span><span class="n">ssl</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;HTTP&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   Workers: </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">workers</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;📱 Web Interface: </span><span class="si">{</span><span class="s1">&#39;https&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">args</span><span class="o">.</span><span class="n">ssl</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;http&#39;</span><span class="si">}</span><span class="s2">://localhost:</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s2">/&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;📚 API Docs: </span><span class="si">{</span><span class="s1">&#39;https&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">args</span><span class="o">.</span><span class="n">ssl</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;http&#39;</span><span class="si">}</span><span class="s2">://localhost:</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s2">/docs&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Press CTRL+C to stop&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">70</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">()</span>
+    
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">uvicorn</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="s2">&quot;src.webserver.server:app&quot;</span><span class="p">,</span>
+            <span class="n">host</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">host</span><span class="p">,</span>
+            <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span>
+            <span class="n">ssl_keyfile</span><span class="o">=</span><span class="n">ssl_keyfile</span><span class="p">,</span>
+            <span class="n">ssl_certfile</span><span class="o">=</span><span class="n">ssl_certfile</span><span class="p">,</span>
+            <span class="n">reload</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">workers</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">workers</span> <span class="ow">or</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">log_level</span><span class="o">=</span><span class="s2">&quot;info&quot;</span>
+        <span class="p">)</span>
+    <span class="k">except</span> <span class="ne">KeyboardInterrupt</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">Shutting down...&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="generate_self_signed_cert">
+<a class="viewcode-back" href="../run_webserver.html#run_webserver.generate_self_signed_cert">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">generate_self_signed_cert</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generates a self-signed SSL certificate and private key for HTTPS connections.</span>
+
+<span class="sd">    The certificate and key are saved to the default SSL certificate directory as defined in the configuration.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        tuple: (certfile, keyfile) where certfile is the path to the generated certificate file,</span>
+<span class="sd">               and keyfile is the path to the generated private key file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">,</span> <span class="n">timezone</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">cryptography</span><span class="w"> </span><span class="kn">import</span> <span class="n">x509</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">cryptography.x509.oid</span><span class="w"> </span><span class="kn">import</span> <span class="n">NameOID</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">cryptography.hazmat.primitives</span><span class="w"> </span><span class="kn">import</span> <span class="n">hashes</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">cryptography.hazmat.primitives.asymmetric</span><span class="w"> </span><span class="kn">import</span> <span class="n">rsa</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">cryptography.hazmat.primitives</span><span class="w"> </span><span class="kn">import</span> <span class="n">serialization</span>
+    
+    <span class="c1"># Generate private key</span>
+    <span class="n">private_key</span> <span class="o">=</span> <span class="n">rsa</span><span class="o">.</span><span class="n">generate_private_key</span><span class="p">(</span>
+        <span class="n">public_exponent</span><span class="o">=</span><span class="mi">65537</span><span class="p">,</span>
+        <span class="n">key_size</span><span class="o">=</span><span class="mi">2048</span><span class="p">,</span>
+    <span class="p">)</span>
+    
+    <span class="c1"># Create self-signed certificate</span>
+    <span class="n">subject</span> <span class="o">=</span> <span class="n">issuer</span> <span class="o">=</span> <span class="n">x509</span><span class="o">.</span><span class="n">Name</span><span class="p">([</span>
+        <span class="n">x509</span><span class="o">.</span><span class="n">NameAttribute</span><span class="p">(</span><span class="n">NameOID</span><span class="o">.</span><span class="n">COUNTRY_NAME</span><span class="p">,</span> <span class="sa">u</span><span class="s2">&quot;PT&quot;</span><span class="p">),</span>
+        <span class="n">x509</span><span class="o">.</span><span class="n">NameAttribute</span><span class="p">(</span><span class="n">NameOID</span><span class="o">.</span><span class="n">STATE_OR_PROVINCE_NAME</span><span class="p">,</span> <span class="sa">u</span><span class="s2">&quot;Portugal&quot;</span><span class="p">),</span>
+        <span class="n">x509</span><span class="o">.</span><span class="n">NameAttribute</span><span class="p">(</span><span class="n">NameOID</span><span class="o">.</span><span class="n">LOCALITY_NAME</span><span class="p">,</span> <span class="sa">u</span><span class="s2">&quot;Localhost&quot;</span><span class="p">),</span>
+        <span class="n">x509</span><span class="o">.</span><span class="n">NameAttribute</span><span class="p">(</span><span class="n">NameOID</span><span class="o">.</span><span class="n">ORGANIZATION_NAME</span><span class="p">,</span> <span class="sa">u</span><span class="s2">&quot;Biometric System&quot;</span><span class="p">),</span>
+        <span class="n">x509</span><span class="o">.</span><span class="n">NameAttribute</span><span class="p">(</span><span class="n">NameOID</span><span class="o">.</span><span class="n">COMMON_NAME</span><span class="p">,</span> <span class="sa">u</span><span class="s2">&quot;localhost&quot;</span><span class="p">),</span>
+    <span class="p">])</span>
+    
+    <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
+    
+    <span class="n">cert</span> <span class="o">=</span> <span class="n">x509</span><span class="o">.</span><span class="n">CertificateBuilder</span><span class="p">()</span><span class="o">.</span><span class="n">subject_name</span><span class="p">(</span>
+        <span class="n">subject</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">issuer_name</span><span class="p">(</span>
+        <span class="n">issuer</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">public_key</span><span class="p">(</span>
+        <span class="n">private_key</span><span class="o">.</span><span class="n">public_key</span><span class="p">()</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">serial_number</span><span class="p">(</span>
+        <span class="n">x509</span><span class="o">.</span><span class="n">random_serial_number</span><span class="p">()</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">not_valid_before</span><span class="p">(</span>
+        <span class="n">now</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">not_valid_after</span><span class="p">(</span>
+        <span class="n">now</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mi">365</span><span class="p">)</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">add_extension</span><span class="p">(</span>
+        <span class="n">x509</span><span class="o">.</span><span class="n">SubjectAlternativeName</span><span class="p">([</span>
+            <span class="n">x509</span><span class="o">.</span><span class="n">DNSName</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;localhost&quot;</span><span class="p">),</span>
+            <span class="n">x509</span><span class="o">.</span><span class="n">DNSName</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;127.0.0.1&quot;</span><span class="p">),</span>
+        <span class="p">]),</span>
+        <span class="n">critical</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">private_key</span><span class="p">,</span> <span class="n">hashes</span><span class="o">.</span><span class="n">SHA256</span><span class="p">())</span>
+    
+    <span class="c1"># Save to files</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">src.webserver.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">SSL_CERT_DIR</span>
+    <span class="n">SSL_CERT_DIR</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    
+    <span class="n">certfile</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">SSL_CERT_DIR</span> <span class="o">/</span> <span class="s2">&quot;self-signed-cert.pem&quot;</span><span class="p">)</span>
+    <span class="n">keyfile</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">SSL_CERT_DIR</span> <span class="o">/</span> <span class="s2">&quot;self-signed-key.pem&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Write certificate</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">certfile</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">cert</span><span class="o">.</span><span class="n">public_bytes</span><span class="p">(</span><span class="n">serialization</span><span class="o">.</span><span class="n">Encoding</span><span class="o">.</span><span class="n">PEM</span><span class="p">))</span>
+    
+    <span class="c1"># Write private key</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">keyfile</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">private_key</span><span class="o">.</span><span class="n">private_bytes</span><span class="p">(</span>
+            <span class="n">encoding</span><span class="o">=</span><span class="n">serialization</span><span class="o">.</span><span class="n">Encoding</span><span class="o">.</span><span class="n">PEM</span><span class="p">,</span>
+            <span class="nb">format</span><span class="o">=</span><span class="n">serialization</span><span class="o">.</span><span class="n">PrivateFormat</span><span class="o">.</span><span class="n">TraditionalOpenSSL</span><span class="p">,</span>
+            <span class="n">encryption_algorithm</span><span class="o">=</span><span class="n">serialization</span><span class="o">.</span><span class="n">NoEncryption</span><span class="p">()</span>
+        <span class="p">))</span>
+    
+    <span class="k">return</span> <span class="n">certfile</span><span class="p">,</span> <span class="n">keyfile</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barreiros.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

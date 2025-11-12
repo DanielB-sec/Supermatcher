@@ -1,0 +1,993 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>webserver.database &mdash; Supermatcher 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Supermatcher
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Supermatcher</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">webserver.database</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for webserver.database</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Database Module - SQLite Encrypted Database Management</span>
+
+<span class="sd">This module handles all database operations for the biometric webserver, including user authentication, secure fingerprint template storage, audit logging, and background job tracking. It uses SQLCipher for encrypted storage when available, and stores fingerprint templates in a secure, non-pickle format (protected hash and minutiae only). All operations are logged for auditing and compliance.</span>
+
+<span class="sd">Tables:</span>
+<span class="sd">    - auth_users: Authentication credentials (admin/endpoint)</span>
+<span class="sd">    - fingerprints: Biometric templates (secure format, NO pickle)</span>
+<span class="sd">    - audit_log: All operations log</span>
+<span class="sd">    - jobs: Background job status</span>
+
+<span class="sd">Security:</span>
+<span class="sd">    - Templates are stored as protected hash and minutiae JSON (no raw features, no pickle blobs)</span>
+<span class="sd">    - All sensitive operations are audited</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">sqlite3</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlcipher3</span><span class="w"> </span><span class="kn">import</span> <span class="n">dbapi2</span> <span class="k">as</span> <span class="n">sqlite</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timezone</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">bcrypt</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.config</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">DB_PATH</span><span class="p">,</span>
+    <span class="n">DB_ENCRYPTION_KEY</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># DATABASE CLASS</span>
+<span class="c1"># ============================================================================</span>
+
+<div class="viewcode-block" id="BiometricDatabase">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BiometricDatabase</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    SQLite database manager for the biometric system with encryption support.</span>
+
+<span class="sd">    This class provides methods for user authentication, secure fingerprint template storage, audit logging, and background job management. It supports encrypted storage using SQLCipher and ensures all sensitive operations are logged for security and compliance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">db_path</span><span class="p">:</span> <span class="n">Path</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">encryption_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize the database connection and create tables if needed.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            db_path (Path, optional): Path to the database file. Defaults to config DB_PATH.</span>
+<span class="sd">            encryption_key (str, optional): Encryption key for SQLCipher. Defaults to config DB_ENCRYPTION_KEY.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db_path</span> <span class="o">=</span> <span class="n">db_path</span> <span class="ow">or</span> <span class="n">DB_PATH</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encryption_key</span> <span class="o">=</span> <span class="n">encryption_key</span> <span class="ow">or</span> <span class="n">DB_ENCRYPTION_KEY</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encrypted</span> <span class="o">=</span> <span class="kc">False</span>
+        
+        <span class="c1"># Try to connect</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connect</span><span class="p">()</span>
+        
+        <span class="c1"># Create tables if needed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_create_tables</span><span class="p">()</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Connect to the database, using SQLCipher encryption if available.</span>
+
+<span class="sd">        Falls back to standard SQLite if SQLCipher is not available. Enables foreign keys and sets row factory for dict-like access.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Try SQLCipher first</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">sqlite</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db_path</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;PRAGMA key = &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">encryption_key</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;PRAGMA cipher_compatibility = 3&quot;</span><span class="p">)</span>
+            <span class="c1"># Test if encryption works</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT count(*) FROM sqlite_master&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">encrypted</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;✓ Using encrypted database (SQLCipher)&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">ImportError</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="c1"># Fallback to standard SQLite</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠ SQLCipher not available, using standard SQLite: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db_path</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">encrypted</span> <span class="o">=</span> <span class="kc">False</span>
+        
+        <span class="c1"># Enable foreign keys</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;PRAGMA foreign_keys = ON&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Row factory for dict-like access</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">row_factory</span> <span class="o">=</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">Row</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_tables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create all required database tables if they do not exist.</span>
+
+<span class="sd">        This includes tables for authentication users, fingerprints, audit logs, and background jobs. Also creates necessary indexes for performance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        
+        <span class="c1"># Auth users table</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">            CREATE TABLE IF NOT EXISTS auth_users (</span>
+<span class="s2">                id INTEGER PRIMARY KEY AUTOINCREMENT,</span>
+<span class="s2">                username TEXT UNIQUE NOT NULL,</span>
+<span class="s2">                password_hash TEXT NOT NULL,</span>
+<span class="s2">                privilege TEXT NOT NULL CHECK(privilege IN (&#39;admin&#39;, &#39;endpoint&#39;)),</span>
+<span class="s2">                failed_attempts INTEGER DEFAULT 0,</span>
+<span class="s2">                locked_until TIMESTAMP NULL,</span>
+<span class="s2">                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,</span>
+<span class="s2">                last_login TIMESTAMP NULL</span>
+<span class="s2">            )</span>
+<span class="s2">        &quot;&quot;&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Fingerprints table - SECURE VERSION (Protected + Minutiae only)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">            CREATE TABLE IF NOT EXISTS fingerprints (</span>
+<span class="s2">                id INTEGER PRIMARY KEY AUTOINCREMENT,</span>
+<span class="s2">                user_id TEXT UNIQUE NOT NULL,</span>
+<span class="s2">                name TEXT NOT NULL,</span>
+<span class="s2">                protected_hash BLOB NOT NULL,</span>
+<span class="s2">                bit_length INTEGER NOT NULL,</span>
+<span class="s2">                minutiae_json TEXT,</span>
+<span class="s2">                quality REAL NOT NULL,</span>
+<span class="s2">                num_minutiae INTEGER,</span>
+<span class="s2">                num_samples INTEGER,</span>
+<span class="s2">                fused BOOLEAN DEFAULT 0,</span>
+<span class="s2">                source_count INTEGER DEFAULT 1,</span>
+<span class="s2">                consensus_score REAL DEFAULT 1.0,</span>
+<span class="s2">                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,</span>
+<span class="s2">                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,</span>
+<span class="s2">                template_blob BLOB</span>
+<span class="s2">            )</span>
+<span class="s2">        &quot;&quot;&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Audit log table</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">            CREATE TABLE IF NOT EXISTS audit_log (</span>
+<span class="s2">                id INTEGER PRIMARY KEY AUTOINCREMENT,</span>
+<span class="s2">                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,</span>
+<span class="s2">                username TEXT NOT NULL,</span>
+<span class="s2">                action TEXT NOT NULL,</span>
+<span class="s2">                details TEXT,</span>
+<span class="s2">                result TEXT,</span>
+<span class="s2">                ip_address TEXT</span>
+<span class="s2">            )</span>
+<span class="s2">        &quot;&quot;&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Background jobs table</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">            CREATE TABLE IF NOT EXISTS jobs (</span>
+<span class="s2">                id TEXT PRIMARY KEY,</span>
+<span class="s2">                type TEXT NOT NULL,</span>
+<span class="s2">                status TEXT NOT NULL,</span>
+<span class="s2">                progress TEXT,</span>
+<span class="s2">                result TEXT,</span>
+<span class="s2">                error TEXT,</span>
+<span class="s2">                created_by TEXT,</span>
+<span class="s2">                started_at TIMESTAMP,</span>
+<span class="s2">                completed_at TIMESTAMP</span>
+<span class="s2">            )</span>
+<span class="s2">        &quot;&quot;&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Create indexes</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;CREATE INDEX IF NOT EXISTS idx_fingerprints_user_id ON fingerprints(user_id)&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status)&quot;</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    
+    <span class="c1"># ========================================================================</span>
+    <span class="c1"># AUTHENTICATION MANAGEMENT</span>
+    <span class="c1"># ========================================================================</span>
+    
+<div class="viewcode-block" id="BiometricDatabase.create_auth_user">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.create_auth_user">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create_auth_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">password</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">privilege</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a new authentication user in the database.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            username (str): Username for the new user.</span>
+<span class="sd">            password (str): Plain text password (will be securely hashed).</span>
+<span class="sd">            privilege (str): User privilege, either &#39;admin&#39; or &#39;endpoint&#39;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if the user was created successfully, False if the username already exists.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Hash password</span>
+            <span class="n">password_hash</span> <span class="o">=</span> <span class="n">bcrypt</span><span class="o">.</span><span class="n">hashpw</span><span class="p">(</span><span class="n">password</span><span class="o">.</span><span class="n">encode</span><span class="p">(),</span> <span class="n">bcrypt</span><span class="o">.</span><span class="n">gensalt</span><span class="p">())</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+            
+            <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;INSERT INTO auth_users (username, password_hash, privilege) VALUES (?, ?, ?)&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">password_hash</span><span class="p">,</span> <span class="n">privilege</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_audit</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;USER_CREATED&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Created </span><span class="si">{</span><span class="n">privilege</span><span class="si">}</span><span class="s2"> user&quot;</span><span class="p">,</span> <span class="s2">&quot;success&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        
+        <span class="k">except</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">IntegrityError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+    
+<div class="viewcode-block" id="BiometricDatabase.authenticate">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.authenticate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">authenticate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">password</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Authenticate a user by verifying their username and password.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            username (str): Username to authenticate.</span>
+<span class="sd">            password (str): Plain text password to verify.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Optional[Dict[str, str]]: Dictionary with user info if authentication succeeds, None otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+            <span class="s2">&quot;SELECT * FROM auth_users WHERE username = ?&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">username</span><span class="p">,)</span>
+        <span class="p">)</span>
+        
+        <span class="n">row</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">row</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_audit</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;LOGIN_FAILED&quot;</span><span class="p">,</span> <span class="s2">&quot;User not found&quot;</span><span class="p">,</span> <span class="s2">&quot;failure&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        
+        <span class="n">user</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+        
+        <span class="c1"># Check if locked</span>
+        <span class="k">if</span> <span class="n">user</span><span class="p">[</span><span class="s2">&quot;locked_until&quot;</span><span class="p">]:</span>
+            <span class="n">locked_until</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">fromisoformat</span><span class="p">(</span><span class="n">user</span><span class="p">[</span><span class="s2">&quot;locked_until&quot;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">locked_until</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log_audit</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;LOGIN_FAILED&quot;</span><span class="p">,</span> <span class="s2">&quot;Account locked&quot;</span><span class="p">,</span> <span class="s2">&quot;failure&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Unlock account</span>
+                <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                    <span class="s2">&quot;UPDATE auth_users SET locked_until = NULL, failed_attempts = 0 WHERE username = ?&quot;</span><span class="p">,</span>
+                    <span class="p">(</span><span class="n">username</span><span class="p">,)</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        
+        <span class="c1"># Verify password</span>
+        <span class="k">if</span> <span class="n">bcrypt</span><span class="o">.</span><span class="n">checkpw</span><span class="p">(</span><span class="n">password</span><span class="o">.</span><span class="n">encode</span><span class="p">(),</span> <span class="n">user</span><span class="p">[</span><span class="s2">&quot;password_hash&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">encode</span><span class="p">()):</span>
+            <span class="c1"># Reset failed attempts</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;UPDATE auth_users SET failed_attempts = 0, last_login = ? WHERE username = ?&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span> <span class="n">username</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_audit</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;LOGIN_SUCCESS&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;success&quot;</span><span class="p">)</span>
+            
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;login&quot;</span><span class="p">:</span> <span class="n">user</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">],</span>
+                <span class="s2">&quot;privilege&quot;</span><span class="p">:</span> <span class="n">user</span><span class="p">[</span><span class="s2">&quot;privilege&quot;</span><span class="p">]</span>
+            <span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Increment failed attempts</span>
+            <span class="n">failed_attempts</span> <span class="o">=</span> <span class="n">user</span><span class="p">[</span><span class="s2">&quot;failed_attempts&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;UPDATE auth_users SET failed_attempts = ? WHERE username = ?&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">failed_attempts</span><span class="p">,</span> <span class="n">username</span><span class="p">)</span>
+            <span class="p">)</span>
+            
+            <span class="c1"># Lock account if too many attempts</span>
+            <span class="k">if</span> <span class="n">failed_attempts</span> <span class="o">&gt;=</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">timedelta</span>
+                <span class="n">lock_until</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">minutes</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+                <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                    <span class="s2">&quot;UPDATE auth_users SET locked_until = ? WHERE username = ?&quot;</span><span class="p">,</span>
+                    <span class="p">(</span><span class="n">lock_until</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span> <span class="n">username</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log_audit</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;ACCOUNT_LOCKED&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Too many failed attempts (</span><span class="si">{</span><span class="n">failed_attempts</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="s2">&quot;failure&quot;</span><span class="p">)</span>
+            
+            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_audit</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;LOGIN_FAILED&quot;</span><span class="p">,</span> <span class="s2">&quot;Invalid password&quot;</span><span class="p">,</span> <span class="s2">&quot;failure&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+    
+<div class="viewcode-block" id="BiometricDatabase.reset_admin_password">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.reset_admin_password">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset_admin_password</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_password</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reset the admin password for account recovery.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            new_password (str): New plain text password for the admin account.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if the password was reset successfully, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">password_hash</span> <span class="o">=</span> <span class="n">bcrypt</span><span class="o">.</span><span class="n">hashpw</span><span class="p">(</span><span class="n">new_password</span><span class="o">.</span><span class="n">encode</span><span class="p">(),</span> <span class="n">bcrypt</span><span class="o">.</span><span class="n">gensalt</span><span class="p">())</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+            
+            <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;UPDATE auth_users SET password_hash = ?, failed_attempts = 0, locked_until = NULL WHERE privilege = &#39;admin&#39;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">password_hash</span><span class="p">,)</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_audit</span><span class="p">(</span><span class="s2">&quot;system&quot;</span><span class="p">,</span> <span class="s2">&quot;ADMIN_PASSWORD_RESET&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;success&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+    
+    <span class="c1"># ========================================================================</span>
+    <span class="c1"># FINGERPRINT MANAGEMENT</span>
+    <span class="c1"># ========================================================================</span>
+    
+<div class="viewcode-block" id="BiometricDatabase.add_fingerprint">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.add_fingerprint">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_fingerprint</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">template_obj</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+        <span class="n">username</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;system&quot;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add a fingerprint template to the database in secure format.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            user_id (str): Unique user identifier.</span>
+<span class="sd">            name (str): User&#39;s name.</span>
+<span class="sd">            template_obj (Any): FingerprintTemplate object from supermatcher v1.0.</span>
+<span class="sd">            username (str, optional): Username who performed the operation. Defaults to &quot;system&quot;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if the template was added successfully, False if the user already exists.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Serialize template SECURELY (Protected + Minutiae only)</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">src.models_serialization</span><span class="w"> </span><span class="kn">import</span> <span class="n">template_to_secure_dict</span>
+            <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+            
+            <span class="n">secure_data</span> <span class="o">=</span> <span class="n">template_to_secure_dict</span><span class="p">(</span><span class="n">template_obj</span><span class="p">)</span>
+            
+            <span class="c1"># Extract components</span>
+            <span class="n">protected_hash</span> <span class="o">=</span> <span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;protected&#39;</span><span class="p">]</span>
+            <span class="n">bit_length</span> <span class="o">=</span> <span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;bit_length&#39;</span><span class="p">]</span>
+            <span class="n">minutiae_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;minutiae&#39;</span><span class="p">])</span>
+            <span class="n">quality</span> <span class="o">=</span> <span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;quality&#39;</span><span class="p">]</span>
+            <span class="n">num_minutiae</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;minutiae&#39;</span><span class="p">])</span>
+            <span class="n">num_samples</span> <span class="o">=</span> <span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;source_count&#39;</span><span class="p">]</span>
+            <span class="n">fused</span> <span class="o">=</span> <span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;fused&#39;</span><span class="p">]</span>
+            <span class="n">source_count</span> <span class="o">=</span> <span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;source_count&#39;</span><span class="p">]</span>
+            <span class="n">consensus_score</span> <span class="o">=</span> <span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;consensus_score&#39;</span><span class="p">]</span>
+            
+            <span class="c1"># SECURITY: No pickle blob saved (only Protected + Minutiae)</span>
+            <span class="c1"># template_blob column kept NULL for backward compatibility</span>
+            
+            <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;INSERT INTO fingerprints </span>
+<span class="sd">                   (user_id, name, protected_hash, bit_length, minutiae_json, </span>
+<span class="sd">                    quality, num_minutiae, num_samples, fused, source_count, </span>
+<span class="sd">                    consensus_score)</span>
+<span class="sd">                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">protected_hash</span><span class="p">,</span> <span class="n">bit_length</span><span class="p">,</span> <span class="n">minutiae_json</span><span class="p">,</span>
+                 <span class="n">quality</span><span class="p">,</span> <span class="n">num_minutiae</span><span class="p">,</span> <span class="n">num_samples</span><span class="p">,</span> <span class="n">fused</span><span class="p">,</span> <span class="n">source_count</span><span class="p">,</span>
+                 <span class="n">consensus_score</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_audit</span><span class="p">(</span>
+                <span class="n">username</span><span class="p">,</span>
+                <span class="s2">&quot;FINGERPRINT_ENROLLED&quot;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;user_id=</span><span class="si">{</span><span class="n">user_id</span><span class="si">}</span><span class="s2">, name=</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">, quality=</span><span class="si">{</span><span class="n">quality</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;success&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        
+        <span class="k">except</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">IntegrityError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_audit</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;FINGERPRINT_ENROLL_FAILED&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;user_id=</span><span class="si">{</span><span class="n">user_id</span><span class="si">}</span><span class="s2"> already exists&quot;</span><span class="p">,</span> <span class="s2">&quot;failure&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+    
+<div class="viewcode-block" id="BiometricDatabase.get_fingerprint">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.get_fingerprint">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_fingerprint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve a fingerprint template and metadata for a given user ID.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            user_id (str): User identifier.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Optional[Dict[str, Any]]: Dictionary with template info and metadata, or None if not found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM fingerprints WHERE user_id = ?&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">user_id</span><span class="p">,))</span>
+        
+        <span class="n">row</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">row</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        
+        <span class="n">data</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+        
+        <span class="c1"># Deserialize template SECURELY (Protected + Minutiae only)</span>
+        <span class="c1"># NO PICKLE FALLBACK - Security first!</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;protected_hash&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;minutiae_json&quot;</span><span class="p">):</span>
+                <span class="kn">from</span><span class="w"> </span><span class="nn">src.models_serialization</span><span class="w"> </span><span class="kn">import</span> <span class="n">template_from_secure_dict</span>
+                <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+                
+                <span class="n">secure_dict</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s1">&#39;identifier&#39;</span><span class="p">:</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;user_id&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;image_path&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>  <span class="c1"># Not stored in DB</span>
+                    <span class="s1">&#39;protected&#39;</span><span class="p">:</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;protected_hash&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;bit_length&#39;</span><span class="p">:</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;bit_length&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;minutiae&#39;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;minutiae_json&#39;</span><span class="p">]),</span>
+                    <span class="s1">&#39;quality&#39;</span><span class="p">:</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;quality&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;fused&#39;</span><span class="p">:</span> <span class="nb">bool</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;fused&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)),</span>
+                    <span class="s1">&#39;source_count&#39;</span><span class="p">:</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;source_count&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                    <span class="s1">&#39;consensus_score&#39;</span><span class="p">:</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;consensus_score&#39;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+                <span class="p">}</span>
+                <span class="n">data</span><span class="p">[</span><span class="s2">&quot;template&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">template_from_secure_dict</span><span class="p">(</span><span class="n">secure_dict</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># No secure data available - template cannot be loaded</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[ERROR] User </span><span class="si">{</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;user_id&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> has no secure template data (legacy format?)&quot;</span><span class="p">)</span>
+                <span class="n">data</span><span class="p">[</span><span class="s2">&quot;template&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="c1"># If deserialization fails, set template to None but keep metadata</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WARNING] Failed to deserialize template for </span><span class="si">{</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;user_id&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;template&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        
+        <span class="k">return</span> <span class="n">data</span></div>
+
+    
+<div class="viewcode-block" id="BiometricDatabase.list_fingerprints">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.list_fingerprints">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">list_fingerprints</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        List all fingerprints in the database (without template blobs).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List[Dict[str, Any]]: List of dictionaries with fingerprint metadata.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;SELECT id, user_id, name, quality, num_minutiae, num_samples, </span>
+<span class="sd">                      created_at, updated_at </span>
+<span class="sd">               FROM fingerprints </span>
+<span class="sd">               ORDER BY created_at DESC&quot;&quot;&quot;</span>
+        <span class="p">)</span>
+        
+        <span class="k">return</span> <span class="p">[</span><span class="nb">dict</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()]</span></div>
+
+    
+<div class="viewcode-block" id="BiometricDatabase.update_fingerprint">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.update_fingerprint">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update_fingerprint</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">template_obj</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">username</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;system&quot;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update a fingerprint&#39;s metadata or template in the database.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            user_id (str): User identifier.</span>
+<span class="sd">            name (str, optional): New name for the user.</span>
+<span class="sd">            template_obj (Any, optional): New fingerprint template object.</span>
+<span class="sd">            username (str, optional): Username who performed the operation. Defaults to &quot;system&quot;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if the fingerprint was updated successfully, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        
+        <span class="c1"># Check if exists</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT id FROM fingerprints WHERE user_id = ?&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">user_id</span><span class="p">,))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        
+        <span class="c1"># Build update query</span>
+        <span class="n">updates</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">[]</span>
+        
+        <span class="k">if</span> <span class="n">name</span><span class="p">:</span>
+            <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;name = ?&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">template_obj</span><span class="p">:</span>
+            <span class="c1"># Serialize template SECURELY (Protected + Minutiae only)</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">src.models_serialization</span><span class="w"> </span><span class="kn">import</span> <span class="n">template_to_secure_dict</span>
+            <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+            
+            <span class="n">secure_data</span> <span class="o">=</span> <span class="n">template_to_secure_dict</span><span class="p">(</span><span class="n">template_obj</span><span class="p">)</span>
+            
+            <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;protected_hash = ?&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;protected&#39;</span><span class="p">])</span>
+            
+            <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;bit_length = ?&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;bit_length&#39;</span><span class="p">])</span>
+            
+            <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;minutiae_json = ?&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;minutiae&#39;</span><span class="p">]))</span>
+            
+            <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;quality = ?&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;quality&#39;</span><span class="p">])</span>
+            
+            <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;num_minutiae = ?&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;minutiae&#39;</span><span class="p">]))</span>
+            
+            <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;num_samples = ?&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;source_count&#39;</span><span class="p">])</span>
+            
+            <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;fused = ?&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;fused&#39;</span><span class="p">])</span>
+            
+            <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;source_count = ?&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;source_count&#39;</span><span class="p">])</span>
+            
+            <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;consensus_score = ?&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">secure_data</span><span class="p">[</span><span class="s1">&#39;consensus_score&#39;</span><span class="p">])</span>
+        
+        <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;updated_at = ?&quot;</span><span class="p">)</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span><span class="o">.</span><span class="n">isoformat</span><span class="p">())</span>
+        
+        <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">user_id</span><span class="p">)</span>
+        
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;UPDATE fingerprints SET </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">updates</span><span class="p">)</span><span class="si">}</span><span class="s2"> WHERE user_id = ?&quot;</span><span class="p">,</span>
+            <span class="n">params</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log_audit</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;FINGERPRINT_UPDATED&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;user_id=</span><span class="si">{</span><span class="n">user_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;success&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+    
+<div class="viewcode-block" id="BiometricDatabase.delete_fingerprint">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.delete_fingerprint">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">delete_fingerprint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;system&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete a fingerprint from the database by user ID.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            user_id (str): User identifier.</span>
+<span class="sd">            username (str, optional): Username who performed the operation. Defaults to &quot;system&quot;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if the fingerprint was deleted successfully, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;DELETE FROM fingerprints WHERE user_id = ?&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">user_id</span><span class="p">,))</span>
+        <span class="n">deleted</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">rowcount</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        
+        <span class="k">if</span> <span class="n">deleted</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_audit</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;FINGERPRINT_DELETED&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;user_id=</span><span class="si">{</span><span class="n">user_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;success&quot;</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">deleted</span></div>
+
+    
+<div class="viewcode-block" id="BiometricDatabase.delete_all_fingerprints">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.delete_all_fingerprints">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">delete_all_fingerprints</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;system&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete all fingerprints from the database.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            username (str, optional): Username who performed the operation. Defaults to &quot;system&quot;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            int: Number of deleted fingerprint records.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT COUNT(*) FROM fingerprints&quot;</span><span class="p">)</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;DELETE FROM fingerprints&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log_audit</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;ALL_FINGERPRINTS_DELETED&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;count=</span><span class="si">{</span><span class="n">count</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;success&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">count</span></div>
+
+    
+<div class="viewcode-block" id="BiometricDatabase.get_all_templates">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.get_all_templates">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_all_templates</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve all fingerprint templates for caching or batch operations.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List[Tuple[str, Any]]: List of (user_id, template_object) tuples.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">            SELECT user_id, protected_hash, bit_length, minutiae_json, </span>
+<span class="s2">                   quality, fused, source_count, consensus_score</span>
+<span class="s2">            FROM fingerprints</span>
+<span class="s2">        &quot;&quot;&quot;</span><span class="p">)</span>
+        
+        <span class="kn">from</span><span class="w"> </span><span class="nn">src.models_serialization</span><span class="w"> </span><span class="kn">import</span> <span class="n">template_from_secure_dict</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+        
+        <span class="n">templates</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># Load ONLY secure format (Protected + Minutiae)</span>
+                <span class="c1"># NO PICKLE FALLBACK - Security first!</span>
+                <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;protected_hash&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;minutiae_json&quot;</span><span class="p">]:</span>
+                    <span class="n">secure_dict</span> <span class="o">=</span> <span class="p">{</span>
+                        <span class="s1">&#39;identifier&#39;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;user_id&#39;</span><span class="p">],</span>
+                        <span class="s1">&#39;image_path&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;protected&#39;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;protected_hash&#39;</span><span class="p">],</span>
+                        <span class="s1">&#39;bit_length&#39;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;bit_length&#39;</span><span class="p">],</span>
+                        <span class="s1">&#39;minutiae&#39;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;minutiae_json&#39;</span><span class="p">]),</span>
+                        <span class="s1">&#39;quality&#39;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;quality&#39;</span><span class="p">],</span>
+                        <span class="s1">&#39;fused&#39;</span><span class="p">:</span> <span class="nb">bool</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;fused&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)),</span>
+                        <span class="s1">&#39;source_count&#39;</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;source_count&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                        <span class="s1">&#39;consensus_score&#39;</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;consensus_score&#39;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+                    <span class="p">}</span>
+                    <span class="n">template</span> <span class="o">=</span> <span class="n">template_from_secure_dict</span><span class="p">(</span><span class="n">secure_dict</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Skip rows without secure template data</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WARNING] Skipping user </span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;user_id&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> - no secure template data (legacy format?)&quot;</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                
+                <span class="n">templates</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;user_id&quot;</span><span class="p">],</span> <span class="n">template</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="c1"># Skip problematic templates but log the error</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WARNING] Failed to load template for </span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;user_id&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+        
+        <span class="k">return</span> <span class="n">templates</span></div>
+
+    
+    <span class="c1"># ========================================================================</span>
+    <span class="c1"># STATISTICS</span>
+    <span class="c1"># ========================================================================</span>
+    
+<div class="viewcode-block" id="BiometricDatabase.get_stats">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.get_stats">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get system statistics for users, templates, and authentication.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dict[str, Any]: Dictionary with statistics (user count, average quality, etc.).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        
+        <span class="c1"># Fingerprint stats</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT COUNT(*) as count FROM fingerprints&quot;</span><span class="p">)</span>
+        <span class="n">num_users</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="s2">&quot;count&quot;</span><span class="p">]</span>
+        
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT AVG(quality) as avg_quality FROM fingerprints&quot;</span><span class="p">)</span>
+        <span class="n">avg_quality</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="s2">&quot;avg_quality&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="mf">0.0</span>
+        
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT SUM(num_minutiae) as total_minutiae FROM fingerprints&quot;</span><span class="p">)</span>
+        <span class="n">total_minutiae</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="s2">&quot;total_minutiae&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="mi">0</span>
+        
+        <span class="c1"># Auth stats</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT COUNT(*) as count FROM auth_users&quot;</span><span class="p">)</span>
+        <span class="n">num_auth_users</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="s2">&quot;count&quot;</span><span class="p">]</span>
+        
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;num_users&quot;</span><span class="p">:</span> <span class="n">num_users</span><span class="p">,</span>
+            <span class="s2">&quot;avg_template_quality&quot;</span><span class="p">:</span> <span class="n">avg_quality</span><span class="p">,</span>
+            <span class="s2">&quot;total_minutiae&quot;</span><span class="p">:</span> <span class="n">total_minutiae</span><span class="p">,</span>
+            <span class="s2">&quot;num_auth_users&quot;</span><span class="p">:</span> <span class="n">num_auth_users</span><span class="p">,</span>
+            <span class="s2">&quot;encrypted&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">encrypted</span>
+        <span class="p">}</span></div>
+
+    
+    <span class="c1"># ========================================================================</span>
+    <span class="c1"># AUDIT LOGGING</span>
+    <span class="c1"># ========================================================================</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_log_audit</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">action</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">details</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="n">result</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;success&quot;</span><span class="p">,</span>
+        <span class="n">ip_address</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Log an audit entry for a database operation.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            username (str): Username performing the action.</span>
+<span class="sd">            action (str): Action type (e.g., LOGIN_SUCCESS, FINGERPRINT_ENROLLED).</span>
+<span class="sd">            details (str, optional): Additional details about the operation.</span>
+<span class="sd">            result (str, optional): &#39;success&#39; or &#39;failure&#39;. Defaults to &#39;success&#39;.</span>
+<span class="sd">            ip_address (str, optional): Client IP address, if available.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;INSERT INTO audit_log (username, action, details, result, ip_address)</span>
+<span class="sd">               VALUES (?, ?, ?, ?, ?)&quot;&quot;&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">details</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">ip_address</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    
+<div class="viewcode-block" id="BiometricDatabase.get_audit_log">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.get_audit_log">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_audit_log</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve recent audit log entries from the database.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            limit (int, optional): Maximum number of entries to return. Defaults to 100.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List[Dict[str, Any]]: List of audit log entry dictionaries.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+            <span class="s2">&quot;SELECT * FROM audit_log ORDER BY timestamp DESC LIMIT ?&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">limit</span><span class="p">,)</span>
+        <span class="p">)</span>
+        
+        <span class="k">return</span> <span class="p">[</span><span class="nb">dict</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()]</span></div>
+
+    
+    <span class="c1"># ========================================================================</span>
+    <span class="c1"># JOB MANAGEMENT</span>
+    <span class="c1"># ========================================================================</span>
+    
+<div class="viewcode-block" id="BiometricDatabase.create_job">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.create_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">job_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">created_by</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a new background job entry in the database.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            job_id (str): Unique job identifier.</span>
+<span class="sd">            job_type (str): Type of job (e.g., &#39;load_folder&#39;).</span>
+<span class="sd">            created_by (str): Username who created the job.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if the job was created successfully, False if the job ID already exists.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;INSERT INTO jobs (id, type, status, created_by, started_at)</span>
+<span class="sd">                   VALUES (?, ?, &#39;pending&#39;, ?, ?)&quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job_type</span><span class="p">,</span> <span class="n">created_by</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span><span class="o">.</span><span class="n">isoformat</span><span class="p">())</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">IntegrityError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+    
+<div class="viewcode-block" id="BiometricDatabase.update_job">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.update_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update_job</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">status</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">progress</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">result</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">error</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update the status or details of a background job in the database.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            job_id (str): Job identifier.</span>
+<span class="sd">            status (str, optional): New status (&#39;pending&#39;, &#39;processing&#39;, &#39;completed&#39;, &#39;failed&#39;).</span>
+<span class="sd">            progress (str, optional): Progress information (JSON string).</span>
+<span class="sd">            result (str, optional): Result data (JSON string).</span>
+<span class="sd">            error (str, optional): Error message.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if the job was updated successfully, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">updates</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">[]</span>
+        
+        <span class="k">if</span> <span class="n">status</span><span class="p">:</span>
+            <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;status = ?&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">status</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s1">&#39;completed&#39;</span> <span class="ow">or</span> <span class="n">status</span> <span class="o">==</span> <span class="s1">&#39;failed&#39;</span><span class="p">:</span>
+                <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;completed_at = ?&quot;</span><span class="p">)</span>
+                <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span><span class="o">.</span><span class="n">isoformat</span><span class="p">())</span>
+        
+        <span class="k">if</span> <span class="n">progress</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;progress = ?&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">progress</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;result = ?&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">error</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;error = ?&quot;</span><span class="p">)</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">updates</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        
+        <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+        
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;UPDATE jobs SET </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">updates</span><span class="p">)</span><span class="si">}</span><span class="s2"> WHERE id = ?&quot;</span><span class="p">,</span>
+            <span class="n">params</span>
+        <span class="p">)</span>
+        <span class="n">updated</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">rowcount</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        
+        <span class="k">return</span> <span class="n">updated</span></div>
+
+    
+<div class="viewcode-block" id="BiometricDatabase.get_job">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.get_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve the status and details of a background job by job ID.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            job_id (str): Job identifier.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Optional[Dict[str, Any]]: Dictionary with job info if found, None otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM jobs WHERE id = ?&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">job_id</span><span class="p">,))</span>
+        
+        <span class="n">row</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">if</span> <span class="n">row</span> <span class="k">else</span> <span class="kc">None</span></div>
+
+    
+<div class="viewcode-block" id="BiometricDatabase.cleanup_old_jobs">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.cleanup_old_jobs">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cleanup_old_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hours</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">24</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete completed or failed jobs older than a specified number of hours.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            hours (int, optional): Delete jobs older than this many hours. Defaults to 24.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            int: Number of deleted jobs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">timedelta</span>
+        <span class="n">cutoff</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span> <span class="o">-</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">hours</span><span class="o">=</span><span class="n">hours</span><span class="p">)</span>
+        
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;DELETE FROM jobs </span>
+<span class="sd">               WHERE status IN (&#39;completed&#39;, &#39;failed&#39;) </span>
+<span class="sd">               AND completed_at &lt; ?&quot;&quot;&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">cutoff</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),)</span>
+        <span class="p">)</span>
+        <span class="n">deleted</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">rowcount</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        
+        <span class="k">return</span> <span class="n">deleted</span></div>
+
+    
+    <span class="c1"># ========================================================================</span>
+    <span class="c1"># UTILITIES</span>
+    <span class="c1"># ========================================================================</span>
+    
+<div class="viewcode-block" id="BiometricDatabase.close">
+<a class="viewcode-back" href="../../webserver.html#webserver.database.BiometricDatabase.close">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Close the database connection.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Enter the runtime context related to this object.</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            BiometricDatabase: The database instance itself.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Exit the runtime context and close the database connection.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barreiros.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

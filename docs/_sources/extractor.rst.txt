@@ -1,0 +1,7 @@
+extractor module
+================
+
+.. automodule:: extractor
+   :members:
+   :show-inheritance:
+   :undoc-members:
